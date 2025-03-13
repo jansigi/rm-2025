@@ -1,0 +1,69 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
+plugins {
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.composeMultiplatform)
+    alias(libs.plugins.composeCompiler)
+}
+
+kotlin {
+    jvm("desktop")
+
+    sourceSets {
+        val desktopMain by getting
+
+        commonMain.dependencies {
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.material)
+            implementation(compose.ui)
+            implementation(compose.components.resources)
+            implementation(compose.components.uiToolingPreview)
+            implementation(libs.androidx.lifecycle.viewmodel)
+            implementation(libs.androidx.lifecycle.runtime.compose)
+            implementation("org.jetbrains.exposed:exposed-core:0.60.0")
+            implementation("org.jetbrains.exposed:exposed-jdbc:0.60.0")
+            implementation("mysql:mysql-connector-java:8.0.32")
+            implementation("org.jetbrains.androidx.navigation:navigation-compose:2.8.0-alpha10")
+            val voyagerVersion = "1.1.0-beta02"
+            implementation("cafe.adriel.voyager:voyager-navigator:$voyagerVersion")
+            implementation("cafe.adriel.voyager:voyager-screenmodel:$voyagerVersion")
+            implementation("cafe.adriel.voyager:voyager-transitions:$voyagerVersion")
+        }
+
+        desktopMain.dependencies {
+            implementation(compose.desktop.currentOs)
+            implementation(libs.kotlinx.coroutines.swing)
+        }
+    }
+}
+
+group = "ch.js.rm2025"
+version = "0"
+
+tasks.withType<Jar> {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes["Main-Class"] = "ch.js.rm2025.MainKt"
+    }
+
+    val desktopMainSourceSet = kotlin.sourceSets["desktopMain"]
+
+    from(desktopMainSourceSet.resources.srcDirs)
+
+    from({
+        configurations["desktopRuntimeClasspath"].filter { it.exists() }.map { zipTree(it) }
+    })
+}
+
+compose.desktop {
+    application {
+        mainClass = "ch.bbw.js.MainKt"
+
+        nativeDistributions {
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            packageName = "ch.js.rm2025"
+            packageVersion = "1.0.0"
+        }
+    }
+}
