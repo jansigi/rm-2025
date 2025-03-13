@@ -13,6 +13,11 @@ kotlin {
         val desktopMain by getting
 
         commonMain.dependencies {
+            implementation(compose.desktop.windows_x64)
+            implementation(compose.desktop.linux_arm64)
+            implementation(compose.desktop.linux_x64)
+            implementation(compose.desktop.macos_arm64)
+            implementation(compose.desktop.macos_x64)
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material)
@@ -58,7 +63,7 @@ tasks.withType<Jar> {
 
 compose.desktop {
     application {
-        mainClass = "ch.bbw.js.MainKt"
+        mainClass = "ch.js.rm2025.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)

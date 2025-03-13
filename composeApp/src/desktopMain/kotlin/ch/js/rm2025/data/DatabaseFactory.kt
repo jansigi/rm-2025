@@ -9,7 +9,7 @@ object DatabaseFactory {
     fun init() {
         try {
             Database.connect(
-                url = "jdbc:mysql://localhost:3306/test",
+                url = "jdbc:mysql://localhost:3306/test?createDatabaseIfNotExist=true",
                 driver = "com.mysql.cj.jdbc.Driver",
                 user = "root",
                 password = "1234"
