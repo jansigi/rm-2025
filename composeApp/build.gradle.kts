@@ -34,6 +34,7 @@ kotlin {
             implementation("cafe.adriel.voyager:voyager-navigator:$voyagerVersion")
             implementation("cafe.adriel.voyager:voyager-screenmodel:$voyagerVersion")
             implementation("cafe.adriel.voyager:voyager-transitions:$voyagerVersion")
+            implementation("com.h2database:h2:2.1.214")
         }
 
         desktopMain.dependencies {

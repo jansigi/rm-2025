@@ -14,12 +14,18 @@ object DatabaseFactory {
                 user = "root",
                 password = "1234"
             )
-
             transaction {
                 SchemaUtils.create(ExampleTable)
             }
         } catch (e: Exception) {
-            println(e.message)
+            println("Using H2 in-memory database instead of MySQL.")
+            Database.connect(
+                url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",
+                driver = "org.h2.Driver"
+            )
+            transaction {
+                SchemaUtils.create(ExampleTable)
+            }
         }
     }
 }
