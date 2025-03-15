@@ -11,6 +11,12 @@
 
 This application uses either an external MySQL database or an in-memory H2 database.
 
+MySQL database connection details can be found in the `/data/DatabaseFactory.kt` file.
+
+The credentials are hardcoded and are:
+- user: root
+- password: 1234
+
 ## Execution
 
 ```bash

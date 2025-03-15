@@ -10,7 +10,7 @@ object DatabaseFactory {
     fun init() {
         try {
             Database.connect(
-                url = "jdbc:mysql://localhost:3306/test?createDatabaseIfNotExist=true",
+                url = "jdbc:mysql://localhost:3306/AthliTrack?createDatabaseIfNotExist=true",
                 driver = "com.mysql.cj.jdbc.Driver",
                 user = "root",
                 password = "1234"
@@ -29,7 +29,7 @@ object DatabaseFactory {
         } catch (e: Exception) {
             println("Using H2 in-memory database instead of MySQL.")
             Database.connect(
-                url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",
+                url = "jdbc:h2:mem:AthliTrack;DB_CLOSE_DELAY=-1",
                 driver = "org.h2.Driver"
             )
             transaction {
