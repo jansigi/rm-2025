@@ -8,6 +8,7 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -20,35 +21,47 @@ import ch.js.rm2025.repository.WorkoutRepository
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
+/**
+ * Data class for storing each execution's date + total volume.
+ */
 data class ProgressEntry(val date: LocalDateTime, val totalVolume: Double)
 
-class ProgressScreen(val exercise: Exercise) : Screen {
+/**
+ * Shows the progress of a given exercise:
+ * - Table of all-time records (date + total volume)
+ * - Next expected volume (average of increases)
+ * - Line chart for last 3 months + the next expected data point
+ */
+class ProgressScreen(private val exercise: Exercise) : Screen {
+
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        var progressEntries by remember { mutableStateOf(listOf<ProgressEntry>()) }
 
-        // Load workout data once
+        // State for storing the entire progress list (all time)
+        var allProgressEntries by remember { mutableStateOf(listOf<ProgressEntry>()) }
+        // The final "next expected" volume based on average increase
+        val nextExpected = remember(allProgressEntries) {
+            computeNextExpected(allProgressEntries)
+        }
+
+        // On first display, load all workouts to gather progress data
         LaunchedEffect(Unit) {
             val workouts = WorkoutRepository.getAll()
             val entries = mutableListOf<ProgressEntry>()
             workouts.forEach { workout ->
                 workout.exercises.forEach { we ->
                     if (we.exercise.id == exercise.id) {
+                        // Sum the volume for this exercise in this workout
                         val volume = we.sets.sumOf { it.weight * it.reps }
+                        // Record a separate entry for each workout (even if same day)
                         entries.add(ProgressEntry(workout.start, volume))
                     }
                 }
             }
-            progressEntries = entries.sortedBy { it.date }
+            // Sort by date
+            allProgressEntries = entries.sortedBy { it.date }
         }
-
-        // Calculate next expected volume
-        val nextExpected = if (progressEntries.size >= 2) {
-            val increases = progressEntries.zipWithNext { a, b -> b.totalVolume - a.totalVolume }
-            val avgIncrease = increases.average()
-            progressEntries.last().totalVolume + avgIncrease
-        } else 0.0
 
         Scaffold(
             topBar = {
@@ -62,44 +75,97 @@ class ProgressScreen(val exercise: Exercise) : Screen {
                 )
             }
         ) { padding ->
-            Column(modifier = Modifier.fillMaxSize().padding(16.dp).padding(padding)) {
-                // Table-like listing of historical volumes
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Date", style = MaterialTheme.typography.subtitle2)
-                    Text("Total Volume", style = MaterialTheme.typography.subtitle2)
+            // Layout: A row with the table on the left and the chart on the right
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .padding(padding)
+            ) {
+                // Left side: table of all progress entries
+                Column(modifier = Modifier.weight(0.4f)) {
+                    if (allProgressEntries.isEmpty()) {
+                        Text("No records available.", style = MaterialTheme.typography.body1)
+                    } else {
+                        ProgressTable(allProgressEntries)
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    // Next expected volume
+                    Text("Next Expected Volume: $nextExpected", style = MaterialTheme.typography.subtitle1)
                 }
-                Divider()
-
-                LazyColumn(modifier = Modifier.weight(1f)) {
-                    items(progressEntries) { entry ->
-                        val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(entry.date.format(formatter))
-                            Text("${entry.totalVolume} kg")
+                Spacer(Modifier.width(16.dp))
+                // Right side: line chart for last 3 months
+                Column(modifier = Modifier.weight(0.6f)) {
+                    Text("Total Volume Chart (last 3 months):", style = MaterialTheme.typography.subtitle1)
+                    Spacer(Modifier.height(8.dp))
+                    // Filter entries to last 3 months, plus the next expected point
+                    val chartEntries = remember(allProgressEntries, nextExpected) {
+                        val threeMonthsAgo = LocalDateTime.now().minusMonths(3)
+                        val recent = allProgressEntries.filter { it.date.isAfter(threeMonthsAgo) }
+                        // Add an extra data point for the next expected
+                        if (allProgressEntries.isNotEmpty()) {
+                            // Use tomorrow as the date for "expected" if you prefer
+                            recent + listOf(ProgressEntry(LocalDateTime.now().plusDays(1), nextExpected))
+                        } else {
+                            emptyList()
                         }
-                        Divider()
+                    }
+                    if (chartEntries.isEmpty()) {
+                        Text("No chart data available.")
+                    } else {
+                        ProgressChart(entries = chartEntries)
                     }
                 }
-
-                Spacer(Modifier.height(16.dp))
-                Text("Next Expected: ${nextExpected}kg", style = MaterialTheme.typography.body1)
-                Spacer(Modifier.height(16.dp))
-
-                Text("Progress Chart (last 3 months):", style = MaterialTheme.typography.subtitle1)
-                Spacer(Modifier.height(8.dp))
-                ProgressChart(
-                    entries = progressEntries.filter {
-                        it.date.isAfter(LocalDateTime.now().minusMonths(3))
-                    } + listOf(ProgressEntry(LocalDateTime.now().plusDays(1), nextExpected))
-                )
             }
+        }
+    }
+
+    /**
+     * Computes the next expected volume:
+     * 1. Determine the increase between each occurrence in chronological order
+     * 2. Compute the average increase
+     * 3. Add the average increase to the most recent total volume
+     * Returns 0.0 if there's not enough data (fewer than 2 records).
+     */
+    private fun computeNextExpected(allEntries: List<ProgressEntry>): Double {
+        if (allEntries.size < 2) return 0.0
+        val increases = allEntries.zipWithNext { a, b -> b.totalVolume - a.totalVolume }
+        val avgIncrease = increases.average()
+        return allEntries.last().totalVolume + avgIncrease
+    }
+}
+
+/**
+ * Displays a table-like list of all progress entries:
+ * Date (dd.MM.yyyy) | Total Volume
+ */
+@Composable
+fun ProgressTable(entries: List<ProgressEntry>) {
+    val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+    // Table headings
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text("Date", style = MaterialTheme.typography.subtitle2)
+        Text("Total Volume", style = MaterialTheme.typography.subtitle2)
+    }
+    Divider()
+    // List all entries
+    LazyColumn {
+        items(entries) { entry ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(entry.date.format(dateFormatter))
+                Text("${entry.totalVolume} kg")
+            }
+            Divider()
         }
     }
 }
 
+/**
+ * Draws a simple line chart of volume vs. time for the given entries.
+ */
 @Composable
 fun ProgressChart(entries: List<ProgressEntry>) {
     if (entries.isEmpty()) {
