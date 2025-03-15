@@ -28,20 +28,26 @@ data class WorkoutExerciseEntry(
     var sets: MutableList<Pair<Double, Int>> = mutableStateListOf()
 )
 
+/**
+ * Allows creating or editing a Workout. If it's a new Workout, a dialog
+ * appears allowing the user to pick a template or "No Template."
+ */
 class AddEditWorkoutScreen(val workout: Workout?) : Screen {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
 
+        // Basic workout fields
         var name by remember { mutableStateOf(workout?.name ?: "") }
         var startText by remember { mutableStateOf(workout?.start?.toString() ?: LocalDateTime.now().toString()) }
         var endText by remember { mutableStateOf(workout?.end?.toString() ?: LocalDateTime.now().plusHours(1).toString()) }
 
+        // The list of exercises for this workout
         var entries by remember { mutableStateOf(mutableStateListOf<WorkoutExerciseEntry>()) }
         var unsavedChanges by remember { mutableStateOf(false) }
         var showCancelConfirmation by remember { mutableStateOf(false) }
 
-        // If editing an existing workout, load data initially
+        // If editing an existing workout, load it once
         if (workout != null && entries.isEmpty()) {
             entries.addAll(
                 workout.exercises.map { we ->
@@ -55,20 +61,55 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
 
         val exercises = ExerciseRepository.getAll()
 
-        // Show template dialog if creating a new workout and no entries are loaded
+        // Only show the "Select Template" dialog if it's a new workout AND no entries loaded yet
         var showTemplateDialog by remember { mutableStateOf(workout == null && entries.isEmpty()) }
+
         if (showTemplateDialog) {
+            // We'll let the user pick from a list of templates or choose "No Template"
+            val templates = TemplateRepository.getAll()
+            var expanded by remember { mutableStateOf(false) }
+            // Track the currently selected template (null = "No Template")
+            var selectedTemplate by remember { mutableStateOf<ch.js.rm2025.model.Template?>(null) }
+
             AlertDialog(
                 onDismissRequest = { showTemplateDialog = false },
                 title = { Text("Select Template") },
-                text = { Text("Do you want to start with a template?") },
+                text = {
+                    Column {
+                        if (templates.isEmpty()) {
+                            Text("No templates found. You can create one in the 'Templates' section.")
+                        } else {
+                            // Drop-down to pick "No Template" or any existing template
+                            OutlinedButton(onClick = { expanded = true }) {
+                                Text(selectedTemplate?.name ?: "No Template")
+                            }
+                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                // "No Template" option
+                                DropdownMenuItem(onClick = {
+                                    selectedTemplate = null
+                                    expanded = false
+                                }) {
+                                    Text("No Template")
+                                }
+                                // All templates
+                                templates.forEach { t ->
+                                    DropdownMenuItem(onClick = {
+                                        selectedTemplate = t
+                                        expanded = false
+                                    }) {
+                                        Text(t.name)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 confirmButton = {
                     Button(onClick = {
-                        val templates = TemplateRepository.getAll()
-                        if (templates.isNotEmpty()) {
-                            val template = templates.first()
+                        // If user picked a template, load it. Otherwise do nothing.
+                        if (selectedTemplate != null) {
                             entries.clear()
-                            template.exercises.forEach { te ->
+                            selectedTemplate!!.exercises.forEach { te ->
                                 entries.add(
                                     WorkoutExerciseEntry(
                                         exercise = te.exercise,
@@ -80,22 +121,26 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                         }
                         showTemplateDialog = false
                     }) {
-                        Text("Yes")
+                        Text("Ok")
                     }
                 },
                 dismissButton = {
                     Button(onClick = { showTemplateDialog = false }) {
-                        Text("No")
+                        Text("Cancel")
                     }
                 }
             )
         }
 
+        // Main screen layout with pinned bottom bar
         Scaffold(
             topBar = {
                 TopAppBar(
                     title = {
-                        Text(if (workout != null) "Edit Workout \"${workout.name}\"" else "Add Workout")
+                        Text(
+                            if (workout != null) "Edit Workout \"${workout.name}\""
+                            else "Add Workout"
+                        )
                     },
                     navigationIcon = {
                         IconButton(onClick = {
@@ -110,10 +155,9 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                     }
                 )
             },
-            // Place Add Exercise, Save, and Cancel in the bottomBar so they're always visible.
             bottomBar = {
-                // We'll place everything in a Column with some spacing.
                 Column(modifier = Modifier.padding(16.dp)) {
+                    // Add Exercise button
                     Button(
                         onClick = {
                             entries.add(
@@ -129,6 +173,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                         Text("Add Exercise")
                     }
                     Spacer(Modifier.height(8.dp))
+                    // Save/Cancel row
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = {
                             try {
@@ -152,6 +197,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                             }
                                         )
                                     }
+                                    // Insert or update
                                     if (workout != null) {
                                         WorkoutRepository.update(
                                             Workout(
@@ -195,16 +241,20 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                 }
             }
         ) { padding ->
-            // The main content is scrollable so that we can see many exercises if needed.
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
                     .padding(16.dp)
             ) {
-                Text(if (workout != null) "Edit this workout" else "Create a new workout", style = MaterialTheme.typography.h6)
+                Text(
+                    if (workout != null) "Edit this workout"
+                    else "Create a new workout",
+                    style = MaterialTheme.typography.h6
+                )
                 Spacer(Modifier.height(8.dp))
 
+                // Basic fields
                 OutlinedTextField(
                     value = name,
                     onValueChange = {
@@ -232,8 +282,8 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                     label = { Text("End Datetime (ISO)") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(Modifier.height(16.dp))
 
+                Spacer(Modifier.height(16.dp))
                 Text("Exercises:", style = MaterialTheme.typography.subtitle1)
                 Spacer(Modifier.height(8.dp))
 
@@ -245,7 +295,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                 }
                 Divider()
 
-                // The scrollable area
+                // Scrollable area for exercises
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     itemsIndexed(entries) { index, entry ->
                         Row(
