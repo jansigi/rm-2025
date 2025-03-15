@@ -23,7 +23,7 @@ The credentials are hardcoded and are:
 cd executable # go into the executable dir
 ``` 
 ```bash
-java -jar composeApp-desktop-<version>.jar # or double click on jar
+java -jar composeApp-desktop-7.jar # or double click on jar
 ```
 If the newest version doesn't work, please try another.
 
