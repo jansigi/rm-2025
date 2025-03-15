@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import ch.js.rm2025.data.DatabaseFactory
 import ch.js.rm2025.model.Workout
 import ch.js.rm2025.repository.WorkoutRepository
 import ch.js.rm2025.ui.component.ConfirmationDialog
@@ -87,6 +88,21 @@ class MainWindowScreen : Screen {
                     workoutToDelete = null
                 },
                 onDismiss = { workoutToDelete = null }
+            )
+        }
+
+        // Database info pop-up
+        var showDbInfoDialog by remember { mutableStateOf(true) }
+        if (showDbInfoDialog) {
+            AlertDialog(
+                onDismissRequest = { showDbInfoDialog = false },
+                title = { Text("Database Info") },
+                text = { Text("The application is using ${DatabaseFactory.dbTypeUsed} database.") },
+                confirmButton = {
+                    Button(onClick = { showDbInfoDialog = false }) {
+                        Text("OK")
+                    }
+                }
             )
         }
     }

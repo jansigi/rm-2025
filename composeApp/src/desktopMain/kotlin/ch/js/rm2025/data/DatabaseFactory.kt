@@ -7,6 +7,8 @@ import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 
 object DatabaseFactory {
+    var dbTypeUsed: String = "Unknown"
+
     fun init() {
         try {
             Database.connect(
@@ -26,8 +28,8 @@ object DatabaseFactory {
                     WorkoutSetTable
                 )
             }
+            dbTypeUsed = "MySQL"
         } catch (e: Exception) {
-            println("Using H2 in-memory database instead of MySQL.")
             Database.connect(
                 url = "jdbc:h2:mem:AthliTrack;DB_CLOSE_DELAY=-1",
                 driver = "org.h2.Driver"
@@ -43,6 +45,7 @@ object DatabaseFactory {
                     WorkoutSetTable
                 )
             }
+            dbTypeUsed = "In-Memory"
         }
         // Insert default exercises directly.
         transaction {
