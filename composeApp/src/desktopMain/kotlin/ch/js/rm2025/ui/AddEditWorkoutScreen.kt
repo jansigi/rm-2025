@@ -14,6 +14,7 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import ch.js.rm2025.model.Exercise
+import ch.js.rm2025.model.Template
 import ch.js.rm2025.model.Workout
 import ch.js.rm2025.model.WorkoutExercise
 import ch.js.rm2025.model.WorkoutSet
@@ -31,7 +32,11 @@ data class WorkoutExerciseEntry(
 )
 
 /**
- * Allows creating or editing a Workout with name-duplication check.
+ * Allows creating or editing a Workout, with:
+ * - Template selection dialog that lets you pick any existing template or "No Template."
+ * - Date/time fields in the format "yyyy-MM-dd HH:mm."
+ * - Duplicate name checks (no two workouts can share the same name).
+ * - Scrollable list of exercises, pinned bottom bar with "Add Exercise," "Save," and "Cancel."
  */
 class AddEditWorkoutScreen(val workout: Workout?) : Screen {
     private val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
@@ -40,6 +45,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
 
+        // Basic fields
         var name by remember { mutableStateOf(workout?.name ?: "") }
         var startText by remember {
             mutableStateOf(
@@ -54,13 +60,13 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
             )
         }
 
+        // The list of exercises (scrollable)
         var entries by remember { mutableStateOf(mutableStateListOf<WorkoutExerciseEntry>()) }
         var unsavedChanges by remember { mutableStateOf(false) }
         var showCancelConfirmation by remember { mutableStateOf(false) }
 
-        // For date/time parse errors
+        // Error messages
         var parseErrorMessage by remember { mutableStateOf<String?>(null) }
-        // For duplicate name errors
         var duplicateNameError by remember { mutableStateOf<String?>(null) }
 
         // If editing, load data once
@@ -77,20 +83,55 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
 
         val exercises = ExerciseRepository.getAll()
 
-        // If new workout, optionally load a template
+        // If this is a new workout (workout == null) and no exercises exist yet,
+        // we show a template selection dialog with all available templates or "No Template."
         var showTemplateDialog by remember { mutableStateOf(workout == null && entries.isEmpty()) }
         if (showTemplateDialog) {
+            // Grab all templates
+            val templates = TemplateRepository.getAll()
+
+            // For picking a template from the list or "No Template"
+            var expanded by remember { mutableStateOf(false) }
+            var selectedTemplate by remember { mutableStateOf<Template?>(null) }
+
             AlertDialog(
                 onDismissRequest = { showTemplateDialog = false },
                 title = { Text("Select Template") },
-                text = { Text("Do you want to start with a template?") },
+                text = {
+                    Column {
+                        if (templates.isEmpty()) {
+                            Text("No templates found. You can create one in the 'Templates' section.")
+                        } else {
+                            OutlinedButton(onClick = { expanded = true }) {
+                                Text(selectedTemplate?.name ?: "No Template")
+                            }
+                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                // "No Template" option
+                                DropdownMenuItem(onClick = {
+                                    selectedTemplate = null
+                                    expanded = false
+                                }) {
+                                    Text("No Template")
+                                }
+                                // All existing templates
+                                templates.forEach { t ->
+                                    DropdownMenuItem(onClick = {
+                                        selectedTemplate = t
+                                        expanded = false
+                                    }) {
+                                        Text(t.name)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 confirmButton = {
                     Button(onClick = {
-                        val templates = TemplateRepository.getAll()
-                        if (templates.isNotEmpty()) {
-                            val template = templates.first()
+                        // If user picked a template, load it
+                        if (selectedTemplate != null) {
                             entries.clear()
-                            template.exercises.forEach { te ->
+                            selectedTemplate!!.exercises.forEach { te ->
                                 entries.add(
                                     WorkoutExerciseEntry(
                                         exercise = te.exercise,
@@ -102,12 +143,12 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                         }
                         showTemplateDialog = false
                     }) {
-                        Text("Yes")
+                        Text("Ok")
                     }
                 },
                 dismissButton = {
                     Button(onClick = { showTemplateDialog = false }) {
-                        Text("No")
+                        Text("Cancel")
                     }
                 }
             )
@@ -116,7 +157,9 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(if (workout != null) "Edit Workout \"${workout.name}\"" else "Add Workout") },
+                    title = {
+                        Text(if (workout != null) "Edit Workout \"${workout.name}\"" else "Add Workout")
+                    },
                     navigationIcon = {
                         IconButton(onClick = {
                             if (unsavedChanges) {
@@ -130,16 +173,13 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                     }
                 )
             },
+            // The bottomBar holds Add Exercise, Save, and Cancel
             bottomBar = {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    // Add Exercise
                     Button(
                         onClick = {
-                            entries.add(
-                                WorkoutExerciseEntry(
-                                    exercise = null,
-                                    sets = mutableStateListOf()
-                                )
-                            )
+                            entries.add(WorkoutExerciseEntry())
                             unsavedChanges = true
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -147,12 +187,12 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                         Text("Add Exercise")
                     }
                     Spacer(Modifier.height(8.dp))
+                    // Save / Cancel
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = {
                             // Clear old errors
                             parseErrorMessage = null
                             duplicateNameError = null
-
                             try {
                                 val start = LocalDateTime.parse(startText, dateTimeFormatter)
                                 val end = LocalDateTime.parse(endText, dateTimeFormatter)
@@ -182,6 +222,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                             )
                                         }
                                         if (workout != null) {
+                                            // Update existing
                                             WorkoutRepository.update(
                                                 Workout(
                                                     id = workout.id,
@@ -192,6 +233,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                                 )
                                             )
                                         } else {
+                                            // Insert new
                                             WorkoutRepository.insert(
                                                 Workout(
                                                     id = 0,
@@ -233,10 +275,14 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                     .padding(16.dp)
                     .padding(padding)
             ) {
-                Text(if (workout != null) "Edit this workout" else "Create a new workout", style = MaterialTheme.typography.h6)
+                Text(
+                    if (workout != null) "Edit this workout"
+                    else "Create a new workout",
+                    style = MaterialTheme.typography.h6
+                )
                 Spacer(Modifier.height(8.dp))
 
-                // Show errors if any
+                // Show any error messages
                 if (parseErrorMessage != null) {
                     Text(parseErrorMessage!!, color = MaterialTheme.colors.error)
                     Spacer(Modifier.height(8.dp))
@@ -281,6 +327,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                 Text("Exercises:", style = MaterialTheme.typography.subtitle1)
                 Spacer(Modifier.height(8.dp))
 
+                // Table headings
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Exercise", modifier = Modifier.weight(0.4f))
                     Text("Sets (weight x reps)", modifier = Modifier.weight(0.5f))
@@ -288,12 +335,14 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                 }
                 Divider()
 
+                // Scrollable list of exercises
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     itemsIndexed(entries) { index, entry ->
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
+                            // Exercise dropdown
                             var expanded by remember { mutableStateOf(false) }
                             Box(modifier = Modifier.weight(0.4f)) {
                                 OutlinedButton(onClick = { expanded = true }) {
@@ -311,6 +360,8 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                     }
                                 }
                             }
+
+                            // Sets
                             Column(modifier = Modifier.weight(0.5f)) {
                                 entry.sets.forEachIndexed { setIndex, pair ->
                                     Row {
@@ -345,6 +396,8 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                     Text("Add Set")
                                 }
                             }
+
+                            // Delete exercise
                             IconButton(
                                 onClick = {
                                     entries.removeAt(index)
@@ -361,6 +414,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
             }
         }
 
+        // Confirmation dialog for discarding unsaved changes
         if (showCancelConfirmation) {
             ConfirmationDialog(
                 title = "Discard Changes?",
