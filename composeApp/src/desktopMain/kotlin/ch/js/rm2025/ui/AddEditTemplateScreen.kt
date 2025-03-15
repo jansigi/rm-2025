@@ -30,19 +30,25 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+
         var name by remember { mutableStateOf(template?.name ?: "") }
         var entries by remember { mutableStateOf(mutableStateListOf<TemplateExerciseEntry>()) }
-        if (template != null && entries.isEmpty()) {
-            entries.addAll(template.exercises.map { te ->
-                TemplateExerciseEntry(
-                    exercise = te.exercise,
-                    sets = te.sets.map { it.reps }.toMutableList()
-                )
-            })
-        }
-        val exercises = ExerciseRepository.getAll()
         var unsavedChanges by remember { mutableStateOf(false) }
         var showCancelConfirmation by remember { mutableStateOf(false) }
+
+        // If editing an existing template, load data on first display
+        if (template != null && entries.isEmpty()) {
+            entries.addAll(
+                template.exercises.map { te ->
+                    TemplateExerciseEntry(
+                        exercise = te.exercise,
+                        sets = te.sets.map { it.reps }.toMutableList()
+                    )
+                }
+            )
+        }
+
+        val exercises = ExerciseRepository.getAll()
 
         Scaffold(
             topBar = {
@@ -63,6 +69,9 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
             }
         ) { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(16.dp).padding(padding)) {
+                Text(if (template != null) "Edit this template" else "Create a new template", style = MaterialTheme.typography.h6)
+                Spacer(Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = {
@@ -73,13 +82,25 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(16.dp))
-                Text("Exercises:")
+
+                // Table headings for the exercise list
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Exercise", modifier = Modifier.weight(0.4f))
+                    Text("Sets (reps)", modifier = Modifier.weight(0.5f))
+                    Spacer(Modifier.weight(0.1f)) // for delete icon
+                }
+                Divider()
+
                 LazyColumn {
                     itemsIndexed(entries) { index, entry ->
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Exercise dropdown
                             var expanded by remember { mutableStateOf(false) }
-                            Box {
-                                TextButton(onClick = { expanded = true }) {
+                            Box(modifier = Modifier.weight(0.4f)) {
+                                OutlinedButton(onClick = { expanded = true }) {
                                     Text(entry.exercise?.name ?: "Select Exercise")
                                 }
                                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -94,18 +115,21 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                                     }
                                 }
                             }
-                            Column {
+
+                            // Sets
+                            Column(modifier = Modifier.weight(0.5f)) {
                                 entry.sets.forEachIndexed { setIndex, reps ->
                                     OutlinedTextField(
-                                        value = if(reps==0) "" else reps.toString(),
+                                        value = if (reps == 0) "" else reps.toString(),
                                         onValueChange = { newVal ->
                                             val intVal = newVal.toIntOrNull() ?: 0
                                             entry.sets[setIndex] = intVal
                                             unsavedChanges = true
                                         },
-                                        label = { Text("Set ${setIndex+1} reps") },
-                                        modifier = Modifier.width(100.dp)
+                                        label = { Text("Set ${setIndex + 1} reps") },
+                                        modifier = Modifier.fillMaxWidth()
                                     )
+                                    Spacer(Modifier.height(4.dp))
                                 }
                                 Button(onClick = {
                                     entry.sets.add(0)
@@ -114,23 +138,33 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                                     Text("Add Set")
                                 }
                             }
-                            IconButton(onClick = {
-                                entries.removeAt(index)
-                                unsavedChanges = true
-                            }) {
+
+                            // Delete exercise from template
+                            IconButton(
+                                onClick = {
+                                    entries.removeAt(index)
+                                    unsavedChanges = true
+                                },
+                                modifier = Modifier.weight(0.1f)
+                            ) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Delete Exercise")
                             }
                         }
                         Divider()
                     }
                 }
-                Button(onClick = {
-                    entries.add(TemplateExerciseEntry())
-                    unsavedChanges = true
-                }) {
-                    Text("Add Exercise")
+
+                Spacer(Modifier.height(8.dp))
+                Row {
+                    Button(onClick = {
+                        entries.add(TemplateExerciseEntry())
+                        unsavedChanges = true
+                    }) {
+                        Text("Add Exercise")
+                    }
                 }
                 Spacer(Modifier.height(16.dp))
+
                 Row {
                     Button(onClick = {
                         if (name.isNotBlank() && entries.isNotEmpty() && entries.all { it.exercise != null && it.sets.all { reps -> reps > 0 } }) {
@@ -141,19 +175,40 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                                     exercise = entry.exercise!!,
                                     order = index,
                                     sets = entry.sets.mapIndexed { sIndex, reps ->
-                                        TemplateSet(id = 0, templateExerciseId = 0, setNumber = sIndex+1, reps = reps)
+                                        TemplateSet(
+                                            id = 0,
+                                            templateExerciseId = 0,
+                                            setNumber = sIndex + 1,
+                                            reps = reps
+                                        )
                                     }
                                 )
                             }
                             if (template != null) {
-                                TemplateRepository.update(Template(id = template.id, name = name, exercises = templateExercises))
+                                // Update existing template
+                                TemplateRepository.update(
+                                    Template(
+                                        id = template.id,
+                                        name = name,
+                                        exercises = templateExercises
+                                    )
+                                )
                             } else {
-                                TemplateRepository.insert(Template(id = 0, name = name, exercises = templateExercises))
+                                // Insert new template
+                                TemplateRepository.insert(
+                                    Template(
+                                        id = 0,
+                                        name = name,
+                                        exercises = templateExercises
+                                    )
+                                )
                             }
                             unsavedChanges = false
                             navigator.pop()
                         }
-                    }) { Text("Save") }
+                    }) {
+                        Text("Save")
+                    }
                     Spacer(Modifier.width(8.dp))
                     Button(onClick = {
                         if (unsavedChanges) {
@@ -161,10 +216,13 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                         } else {
                             navigator.pop()
                         }
-                    }) { Text("Cancel") }
+                    }) {
+                        Text("Cancel")
+                    }
                 }
             }
         }
+
         if (showCancelConfirmation) {
             ConfirmationDialog(
                 title = "Discard Changes?",

@@ -20,6 +20,9 @@ class ViewWorkoutScreen(val workout: Workout) : Screen {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+        val duration = Duration.between(workout.start, workout.end)
+
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -33,13 +36,13 @@ class ViewWorkoutScreen(val workout: Workout) : Screen {
             }
         ) { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(16.dp).padding(padding)) {
-                val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
                 Text("Start: ${workout.start.format(formatter)}")
                 Text("End: ${workout.end.format(formatter)}")
-                val duration = Duration.between(workout.start, workout.end)
-                Text("Duration: ${duration.toHours()}h ${duration.toMinutes()%60}m")
+                Text("Duration: ${duration.toHours()}h ${duration.toMinutes() % 60}m")
+
                 Spacer(Modifier.height(16.dp))
                 Text("Exercises:", style = MaterialTheme.typography.h6)
+
                 LazyColumn {
                     items(workout.exercises) { we ->
                         Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
@@ -48,18 +51,22 @@ class ViewWorkoutScreen(val workout: Workout) : Screen {
                                 we.sets.forEach { ws ->
                                     Text("Set ${ws.setNumber}: ${ws.weight} kg x ${ws.reps} reps")
                                 }
-                                Button(onClick = { navigator.push(ProgressScreen(we.exercise)) }) {
+                                Button(onClick = {
+                                    navigator.push(ProgressScreen(we.exercise))
+                                }) {
                                     Text("My Progress")
                                 }
                             }
                         }
                     }
                 }
+
                 val totalVolume = workout.exercises.sumOf { we -> we.sets.sumOf { ws -> ws.weight * ws.reps } }
                 val totalSets = workout.exercises.sumOf { it.sets.size }
                 val totalReps = workout.exercises.sumOf { we -> we.sets.sumOf { ws -> ws.reps } }
+
                 Spacer(Modifier.height(16.dp))
-                Text("Total Volume: $totalVolume")
+                Text("Total Volume: $totalVolume kg")
                 Text("Total Sets: $totalSets")
                 Text("Total Reps: $totalReps")
             }

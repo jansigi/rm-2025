@@ -7,6 +7,7 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
@@ -22,13 +23,15 @@ class ExercisesScreen : Screen {
         val navigator = LocalNavigator.currentOrThrow
         var exercises by remember { mutableStateOf(listOf<Exercise>()) }
         var exerciseToDelete by remember { mutableStateOf<Exercise?>(null) }
+
         LaunchedEffect(Unit) {
             exercises = ExerciseRepository.getAll()
         }
+
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("AthliTrack - Exercises") },
+                    title = { Text("Exercises") },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) {
                             Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
@@ -42,14 +45,28 @@ class ExercisesScreen : Screen {
                 }
             }
         ) { padding ->
-            LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
-                items(exercises) { exercise ->
-                    ExerciseItem(
-                        exercise,
-                        onEdit = { navigator.push(AddEditExerciseScreen(exercise)) },
-                        onDelete = { exerciseToDelete = exercise },
-                        onProgress = { navigator.push(ProgressScreen(exercise)) }
-                    )
+            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                // Table Headings
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Exercise", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.2f))
+                    Text("Description", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.5f))
+                    Text("Type", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.1f))
+                    Text("Action", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.2f))
+                }
+                Divider()
+
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(exercises) { exercise ->
+                        ExerciseRow(
+                            exercise,
+                            onEdit = { navigator.push(AddEditExerciseScreen(exercise)) },
+                            onDelete = { exerciseToDelete = exercise },
+                            onProgress = { navigator.push(ProgressScreen(exercise)) }
+                        )
+                    }
                 }
             }
         }
@@ -57,7 +74,7 @@ class ExercisesScreen : Screen {
         if (exerciseToDelete != null) {
             ConfirmationDialog(
                 title = "Delete Exercise",
-                message = "Are you sure you want to delete this exercise?",
+                message = "Are you sure you want to delete \"${exerciseToDelete!!.name}\"?",
                 onConfirm = {
                     ExerciseRepository.delete(exerciseToDelete!!.id)
                     exercises = ExerciseRepository.getAll()
@@ -70,22 +87,33 @@ class ExercisesScreen : Screen {
 }
 
 @Composable
-fun ExerciseItem(
+fun ExerciseRow(
     exercise: Exercise,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onProgress: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Text("Name: ${exercise.name}", style = MaterialTheme.typography.h6)
-            Text("Description: ${exercise.description}")
-            Text("Type: ${exercise.type}")
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Button(onClick = onEdit) { Text("Edit") }
-                Button(onClick = onDelete) { Text("Delete") }
-                Button(onClick = onProgress) { Text("My Progress") }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(exercise.name, modifier = Modifier.weight(0.2f))
+        Text(exercise.description, modifier = Modifier.weight(0.5f))
+        Text(exercise.type, modifier = Modifier.weight(0.1f))
+        Row(modifier = Modifier.weight(0.2f), horizontalArrangement = Arrangement.End) {
+            Button(onClick = onProgress) {
+                Text("Progress")
+            }
+            Spacer(Modifier.width(4.dp))
+            Button(onClick = onEdit) {
+                Text("Edit")
+            }
+            Spacer(Modifier.width(4.dp))
+            Button(onClick = onDelete, colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error)) {
+                Text("Delete")
             }
         }
     }
+    Divider()
 }

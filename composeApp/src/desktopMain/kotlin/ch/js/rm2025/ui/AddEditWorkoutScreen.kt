@@ -32,6 +32,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+
         var name by remember { mutableStateOf(workout?.name ?: "") }
         var startText by remember { mutableStateOf(workout?.start?.toString() ?: LocalDateTime.now().toString()) }
         var endText by remember { mutableStateOf(workout?.end?.toString() ?: LocalDateTime.now().plusHours(1).toString()) }
@@ -39,7 +40,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
         var unsavedChanges by remember { mutableStateOf(false) }
         var showCancelConfirmation by remember { mutableStateOf(false) }
 
-        // Initialize entries if editing an existing workout.
+        // If editing an existing workout, load data on first display
         if (workout != null && entries.isEmpty()) {
             entries.addAll(
                 workout.exercises.map { we ->
@@ -53,7 +54,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
 
         val exercises = ExerciseRepository.getAll()
 
-        // If adding a new workout and there are no entries yet, prompt for a template.
+        // If creating a new workout, optionally load a template
         if (workout == null && entries.isEmpty()) {
             var showTemplateDialog by remember { mutableStateOf(true) }
             if (showTemplateDialog) {
@@ -65,6 +66,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                         Button(onClick = {
                             val templates = TemplateRepository.getAll()
                             if (templates.isNotEmpty()) {
+                                // For simplicity, we just pick the first template
                                 val template = templates.first()
                                 entries.addAll(
                                     template.exercises.map { te ->
@@ -89,14 +91,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = {
-                        Text(
-                            if (workout != null)
-                                "Edit Workout \"${workout.name}\""
-                            else
-                                "Add Workout"
-                        )
-                    },
+                    title = { Text(if (workout != null) "Edit Workout \"${workout.name}\"" else "Add Workout") },
                     navigationIcon = {
                         IconButton(onClick = {
                             if (unsavedChanges) {
@@ -111,10 +106,15 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                 )
             }
         ) { padding ->
-            Column(modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .padding(padding)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .padding(padding)
+            ) {
+                Text(if (workout != null) "Edit this workout" else "Create a new workout", style = MaterialTheme.typography.h6)
+                Spacer(Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = {
@@ -143,16 +143,28 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(16.dp))
-                Text("Exercises:")
+
+                Text("Exercises:", style = MaterialTheme.typography.subtitle1)
+                Spacer(Modifier.height(8.dp))
+
+                // Table-like headings for the workout exercises
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Exercise", modifier = Modifier.weight(0.4f))
+                    Text("Sets (weight x reps)", modifier = Modifier.weight(0.5f))
+                    Spacer(Modifier.weight(0.1f))
+                }
+                Divider()
+
                 LazyColumn {
                     itemsIndexed(entries) { index, entry ->
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
+                            // Exercise dropdown
                             var expanded by remember { mutableStateOf(false) }
-                            Box {
-                                TextButton(onClick = { expanded = true }) {
+                            Box(modifier = Modifier.weight(0.4f)) {
+                                OutlinedButton(onClick = { expanded = true }) {
                                     Text(entry.exercise?.name ?: "Select Exercise")
                                 }
                                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -167,7 +179,9 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                     }
                                 }
                             }
-                            Column {
+
+                            // Sets for weight and reps
+                            Column(modifier = Modifier.weight(0.5f)) {
                                 entry.sets.forEachIndexed { setIndex, pair ->
                                     Row {
                                         OutlinedTextField(
@@ -180,7 +194,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                             label = { Text("Set ${setIndex + 1} Weight") },
                                             modifier = Modifier.width(100.dp)
                                         )
-                                        Spacer(Modifier.width(4.dp))
+                                        Spacer(Modifier.width(8.dp))
                                         OutlinedTextField(
                                             value = if (pair.second == 0) "" else pair.second.toString(),
                                             onValueChange = { newVal ->
@@ -188,10 +202,11 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                                 entry.sets[setIndex] = pair.first to reps
                                                 unsavedChanges = true
                                             },
-                                            label = { Text("Set ${setIndex + 1} Reps") },
-                                            modifier = Modifier.width(100.dp)
+                                            label = { Text("Reps") },
+                                            modifier = Modifier.width(80.dp)
                                         )
                                     }
+                                    Spacer(Modifier.height(4.dp))
                                 }
                                 Button(onClick = {
                                     entry.sets.add(Pair(0.0, 0))
@@ -200,22 +215,27 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                     Text("Add Set")
                                 }
                             }
+
+                            // Delete exercise from workout
                             IconButton(onClick = {
                                 entries.removeAt(index)
                                 unsavedChanges = true
-                            }) {
+                            }, modifier = Modifier.weight(0.1f)) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Delete Exercise")
                             }
                         }
                         Divider()
                     }
                 }
+
+                Spacer(Modifier.height(8.dp))
                 Button(onClick = {
                     entries.add(WorkoutExerciseEntry())
                     unsavedChanges = true
                 }) {
                     Text("Add Exercise")
                 }
+
                 Spacer(Modifier.height(16.dp))
                 Row {
                     Button(onClick = {
@@ -227,7 +247,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                     WorkoutExercise(
                                         id = 0,
                                         workoutId = 0,
-                                        exercise = entry.exercise ?: error("Exercise not selected"),
+                                        exercise = entry.exercise ?: error("No exercise selected"),
                                         order = index,
                                         sets = entry.sets.mapIndexed { sIndex, pair ->
                                             WorkoutSet(
@@ -240,7 +260,9 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                         }
                                     )
                                 }
+
                                 if (workout != null) {
+                                    // Update existing workout
                                     WorkoutRepository.update(
                                         Workout(
                                             id = workout.id,
@@ -251,6 +273,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                         )
                                     )
                                 } else {
+                                    // Insert new workout
                                     WorkoutRepository.insert(
                                         Workout(
                                             id = 0,
@@ -265,9 +288,12 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                 navigator.pop()
                             }
                         } catch (e: Exception) {
-                            // Handle parse errors or show message
+                            // You could show a Snackbar or alert for parse errors
+                            println("Error: ${e.message}")
                         }
-                    }) { Text("Save") }
+                    }) {
+                        Text("Save")
+                    }
                     Spacer(Modifier.width(8.dp))
                     Button(onClick = {
                         if (unsavedChanges) {
@@ -275,7 +301,9 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                         } else {
                             navigator.pop()
                         }
-                    }) { Text("Cancel") }
+                    }) {
+                        Text("Cancel")
+                    }
                 }
             }
         }

@@ -27,6 +27,8 @@ class ProgressScreen(val exercise: Exercise) : Screen {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         var progressEntries by remember { mutableStateOf(listOf<ProgressEntry>()) }
+
+        // Load workout data once
         LaunchedEffect(Unit) {
             val workouts = WorkoutRepository.getAll()
             val entries = mutableListOf<ProgressEntry>()
@@ -40,6 +42,8 @@ class ProgressScreen(val exercise: Exercise) : Screen {
             }
             progressEntries = entries.sortedBy { it.date }
         }
+
+        // Calculate next expected volume
         val nextExpected = if (progressEntries.size >= 2) {
             val increases = progressEntries.zipWithNext { a, b -> b.totalVolume - a.totalVolume }
             val avgIncrease = increases.average()
@@ -59,18 +63,38 @@ class ProgressScreen(val exercise: Exercise) : Screen {
             }
         ) { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(16.dp).padding(padding)) {
+                // Table-like listing of historical volumes
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Date", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.5f))
+                    Text("Total Volume", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.5f))
+                }
+                Divider()
+
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     items(progressEntries) { entry ->
                         val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-                        Text("${entry.date.format(formatter)}: ${entry.totalVolume}")
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(entry.date.format(formatter), modifier = Modifier.weight(0.5f))
+                            Text("${entry.totalVolume} kg", modifier = Modifier.weight(0.5f))
+                        }
+                        Divider()
                     }
                 }
-                Text("Next Expected Volume: $nextExpected")
+
                 Spacer(Modifier.height(16.dp))
-                Text("Progress Chart (last 3 months):")
-                ProgressChart(progressEntries.filter {
-                    it.date.isAfter(LocalDateTime.now().minusMonths(3))
-                } + listOf(ProgressEntry(LocalDateTime.now().plusDays(1), nextExpected)))
+                Text("Next Expected: ${nextExpected}kg", style = MaterialTheme.typography.body1)
+                Spacer(Modifier.height(16.dp))
+
+                Text("Progress Chart (last 3 months):", style = MaterialTheme.typography.subtitle1)
+                Spacer(Modifier.height(8.dp))
+                ProgressChart(
+                    entries = progressEntries.filter {
+                        it.date.isAfter(LocalDateTime.now().minusMonths(3))
+                    } + listOf(ProgressEntry(LocalDateTime.now().plusDays(1), nextExpected))
+                )
             }
         }
     }
@@ -83,7 +107,7 @@ fun ProgressChart(entries: List<ProgressEntry>) {
         return
     }
     Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
-        val maxVolume = entries.maxOf { it.totalVolume }
+        val maxVolume = entries.maxOf { it.totalVolume }.coerceAtLeast(1.0)
         val padding = 16.dp.toPx()
         val widthPerEntry = (size.width - 2 * padding) / (entries.size - 1).coerceAtLeast(1)
         for (i in 0 until entries.size - 1) {
@@ -91,7 +115,12 @@ fun ProgressChart(entries: List<ProgressEntry>) {
             val y1 = size.height - padding - (entries[i].totalVolume / maxVolume * (size.height - 2 * padding))
             val x2 = padding + (i + 1) * widthPerEntry
             val y2 = size.height - padding - (entries[i + 1].totalVolume / maxVolume * (size.height - 2 * padding))
-            drawLine(Color.Blue, Offset(x1, y1.toFloat()), Offset(x2, y2.toFloat()), strokeWidth = 4f)
+            drawLine(
+                color = Color.Blue,
+                start = Offset(x1, y1.toFloat()),
+                end = Offset(x2, y2.toFloat()),
+                strokeWidth = 4f
+            )
         }
     }
 }

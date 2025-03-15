@@ -18,10 +18,11 @@ class AddEditExerciseScreen(val exercise: Exercise?) : Screen {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val isEdit = exercise != null
+
         var name by remember { mutableStateOf(exercise?.name ?: "") }
         var description by remember { mutableStateOf(exercise?.description ?: "") }
         var type by remember { mutableStateOf(exercise?.type ?: "") }
-        val isEdit = exercise != null
 
         var unsavedChanges by remember { mutableStateOf(false) }
         var showCancelConfirmation by remember { mutableStateOf(false) }
@@ -50,13 +51,16 @@ class AddEditExerciseScreen(val exercise: Exercise?) : Screen {
                     .padding(16.dp)
                     .padding(padding)
             ) {
+                Text(if (isEdit) "Edit this exercise" else "Create a new exercise", style = MaterialTheme.typography.h6)
+                Spacer(Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = {
                         name = it
                         unsavedChanges = true
                     },
-                    label = { Text("Name") },
+                    label = { Text("Exercise Name") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -77,14 +81,19 @@ class AddEditExerciseScreen(val exercise: Exercise?) : Screen {
                     label = { Text("Type") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
+
                 Row {
                     Button(onClick = {
                         if (name.isNotBlank() && description.isNotBlank() && type.isNotBlank()) {
                             if (isEdit) {
-                                ExerciseRepository.update(Exercise(exercise!!.id, name, description, type))
+                                ExerciseRepository.update(
+                                    Exercise(exercise!!.id, name, description, type)
+                                )
                             } else {
-                                ExerciseRepository.insert(Exercise(0, name, description, type))
+                                ExerciseRepository.insert(
+                                    Exercise(0, name, description, type)
+                                )
                             }
                             unsavedChanges = false
                             navigator.pop()
@@ -92,7 +101,7 @@ class AddEditExerciseScreen(val exercise: Exercise?) : Screen {
                     }) {
                         Text("Save")
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(Modifier.width(8.dp))
                     Button(onClick = {
                         if (unsavedChanges) {
                             showCancelConfirmation = true
@@ -105,6 +114,7 @@ class AddEditExerciseScreen(val exercise: Exercise?) : Screen {
                 }
             }
         }
+
         if (showCancelConfirmation) {
             ConfirmationDialog(
                 title = "Discard Changes?",

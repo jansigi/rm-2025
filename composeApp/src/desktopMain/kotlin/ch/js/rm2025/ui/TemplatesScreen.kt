@@ -7,6 +7,7 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
@@ -22,13 +23,15 @@ class TemplatesScreen : Screen {
         val navigator = LocalNavigator.currentOrThrow
         var templates by remember { mutableStateOf(listOf<Template>()) }
         var templateToDelete by remember { mutableStateOf<Template?>(null) }
+
         LaunchedEffect(Unit) {
             templates = TemplateRepository.getAll()
         }
+
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("AthliTrack - Templates") },
+                    title = { Text("Templates") },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) {
                             Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
@@ -42,13 +45,25 @@ class TemplatesScreen : Screen {
                 }
             }
         ) { padding ->
-            LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
-                items(templates) { template ->
-                    TemplateItem(
-                        template,
-                        onEdit = { navigator.push(AddEditTemplateScreen(template)) },
-                        onDelete = { templateToDelete = template }
-                    )
+            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                // Table Headings
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Name", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.6f))
+                    Text("Actions", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.4f))
+                }
+                Divider()
+
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(templates) { template ->
+                        TemplateRow(
+                            template,
+                            onEdit = { navigator.push(AddEditTemplateScreen(template)) },
+                            onDelete = { templateToDelete = template }
+                        )
+                    }
                 }
             }
         }
@@ -56,7 +71,7 @@ class TemplatesScreen : Screen {
         if (templateToDelete != null) {
             ConfirmationDialog(
                 title = "Delete Template",
-                message = "Are you sure you want to delete this template?",
+                message = "Are you sure you want to delete \"${templateToDelete!!.name}\"?",
                 onConfirm = {
                     TemplateRepository.delete(templateToDelete!!.id)
                     templates = TemplateRepository.getAll()
@@ -69,17 +84,26 @@ class TemplatesScreen : Screen {
 }
 
 @Composable
-fun TemplateItem(
+fun TemplateRow(
     template: Template,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-        Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(template.name, style = MaterialTheme.typography.h6, modifier = Modifier.weight(1f))
-            Button(onClick = onEdit) { Text("Edit") }
-            Spacer(Modifier.width(8.dp))
-            Button(onClick = onDelete) { Text("Delete") }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(template.name, modifier = Modifier.weight(0.6f))
+        Row(modifier = Modifier.weight(0.4f), horizontalArrangement = Arrangement.End) {
+            Button(onClick = onEdit) {
+                Text("Edit")
+            }
+            Spacer(Modifier.width(4.dp))
+            Button(onClick = onDelete, colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error)) {
+                Text("Delete")
+            }
         }
     }
+    Divider()
 }
