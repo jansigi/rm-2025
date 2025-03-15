@@ -50,19 +50,20 @@ class MainWindowScreen : Screen {
             }
         ) { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                // Optional headings row
+                // Headings for columns: Name, Start - End, Actions
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Name", style = MaterialTheme.typography.subtitle2)
-                    Text("Start - End", style = MaterialTheme.typography.subtitle2)
-                    Text("Actions", style = MaterialTheme.typography.subtitle2)
+                    Text("Name", modifier = Modifier.weight(0.3f), style = MaterialTheme.typography.subtitle2)
+                    Text("Start - End", modifier = Modifier.weight(0.4f), style = MaterialTheme.typography.subtitle2)
+                    Text("Actions", modifier = Modifier.weight(0.3f), style = MaterialTheme.typography.subtitle2)
                 }
                 Divider()
 
+                // Workouts List
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(workouts) { workout ->
                         WorkoutRow(
@@ -107,21 +108,32 @@ fun WorkoutRow(
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left column for name/time info
-        Column(modifier = Modifier.weight(1f)) {
-            Text(workout.name, style = MaterialTheme.typography.subtitle1)
+        // Column 1: Name
+        Text(
+            workout.name,
+            modifier = Modifier.weight(0.3f),
+            style = MaterialTheme.typography.subtitle1
+        )
+
+        // Column 2: Start - End & Duration
+        Column(modifier = Modifier.weight(0.4f)) {
             Text("${workout.start.format(formatter)} - ${workout.end.format(formatter)}")
-            Text("Duration: ${duration.toHours()}h ${duration.toMinutes() % 60}m")
+            Text("Duration: ${duration.toHours()}h ${duration.toMinutes() % 60}m", style = MaterialTheme.typography.caption)
         }
 
-        // Action Buttons - no weight here, so they're not squashed
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Column 3: Actions
+        Row(
+            modifier = Modifier.weight(0.3f),
+            horizontalArrangement = Arrangement.End
+        ) {
             Button(onClick = onView) {
                 Text("View")
             }
+            Spacer(Modifier.width(8.dp))
             Button(onClick = onEdit) {
                 Text("Edit")
             }
+            Spacer(Modifier.width(8.dp))
             Button(
                 onClick = onDelete,
                 colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error)
