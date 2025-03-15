@@ -1,0 +1,85 @@
+package ch.js.rm2025.ui
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import cafe.adriel.voyager.core.screen.Screen
+import ch.js.rm2025.model.Exercise
+import ch.js.rm2025.repository.WorkoutRepository
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+data class ProgressEntry(val date: LocalDateTime, val totalVolume: Double)
+
+class ProgressScreen(val exercise: Exercise) : Screen {
+    @Composable
+    override fun Content() {
+        var progressEntries by remember { mutableStateOf(listOf<ProgressEntry>()) }
+        LaunchedEffect(Unit) {
+            val workouts = WorkoutRepository.getAll()
+            val entries = mutableListOf<ProgressEntry>()
+            workouts.forEach { workout ->
+                workout.exercises.forEach { we ->
+                    if(we.exercise.id == exercise.id) {
+                        val volume = we.sets.sumOf { it.weight * it.reps }
+                        entries.add(ProgressEntry(workout.start, volume))
+                    }
+                }
+            }
+            progressEntries = entries.sortedBy { it.date }
+        }
+        val nextExpected = if(progressEntries.size >= 2) {
+            val increases = progressEntries.zipWithNext { a, b -> b.totalVolume - a.totalVolume }
+            val avgIncrease = increases.average()
+            progressEntries.last().totalVolume + avgIncrease
+        } else 0.0
+        
+        Scaffold(
+            topBar = {
+                TopAppBar(title = { Text("Progress of ${exercise.name}") })
+            }
+        ) { padding ->
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    items(progressEntries) { entry ->
+                        val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+                        Text("${entry.date.format(formatter)}: ${entry.totalVolume}")
+                    }
+                }
+                Text("Next Expected Volume: $nextExpected")
+                Spacer(Modifier.height(16.dp))
+                Text("Progress Chart (last 3 months):")
+                ProgressChart(progressEntries.filter { 
+                    it.date.isAfter(LocalDateTime.now().minusMonths(3))
+                } + listOf(ProgressEntry(LocalDateTime.now().plusDays(1), nextExpected)))
+            }
+        }
+    }
+}
+
+@Composable
+fun ProgressChart(entries: List<ProgressEntry>) {
+    if(entries.isEmpty()) {
+        Text("No progress data available.")
+        return
+    }
+    Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+        val maxVolume = entries.maxOf { it.totalVolume }
+        val padding = 16.dp.toPx()
+        val widthPerEntry = (size.width - 2 * padding) / (entries.size - 1).coerceAtLeast(1)
+        for(i in 0 until entries.size - 1) {
+            val x1 = padding + i * widthPerEntry
+            val y1 = size.height - padding - (entries[i].totalVolume / maxVolume * (size.height - 2 * padding))
+            val x2 = padding + (i+1) * widthPerEntry
+            val y2 = size.height - padding - (entries[i+1].totalVolume / maxVolume * (size.height - 2 * padding))
+            drawLine(Color.Blue, Offset(x1, y1.toFloat()), Offset(x2, y2.toFloat()), strokeWidth = 4f)
+        }
+    }
+}

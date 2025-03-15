@@ -1,11 +1,24 @@
-This is a Kotlin Multiplatform project targeting Desktop.
+# README
 
-* `/composeApp` is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - `commonMain` is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    `iosMain` would be the right folder for such calls.
+## Overview
+
+- Competitor: *Jan Sigrist*
+- Language: *Kotlin*
+- Technology: *Kotlin Multiplatform, targeting Desktop*
+- IDE: *IntelliJ*
+
+## Database
+
+This application uses either an external MySQL database or an in-memory H2 database.
+
+## Execution
+
+```bash
+cd executable # go into the executable dir
+``` 
+```bash
+java -jar composeApp-desktop-<version>.jar # or double click on jar
+```
+If the newest version doesn't work, please try another.
 
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
