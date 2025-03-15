@@ -46,15 +46,17 @@ class ExercisesScreen : Screen {
             }
         ) { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                // Table Headings
+                // Optional headings row
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Exercise", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.2f))
-                    Text("Description", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.5f))
-                    Text("Type", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.1f))
-                    Text("Action", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.2f))
+                    Text("Exercise", style = MaterialTheme.typography.subtitle2)
+                    Text("Description", style = MaterialTheme.typography.subtitle2)
+                    Text("Type", style = MaterialTheme.typography.subtitle2)
+                    Text("Actions", style = MaterialTheme.typography.subtitle2)
                 }
                 Divider()
 
@@ -94,23 +96,30 @@ fun ExerciseRow(
     onProgress: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(exercise.name, modifier = Modifier.weight(0.2f))
-        Text(exercise.description, modifier = Modifier.weight(0.5f))
-        Text(exercise.type, modifier = Modifier.weight(0.1f))
-        Row(modifier = Modifier.weight(0.2f), horizontalArrangement = Arrangement.End) {
+        // Main info
+        Column(modifier = Modifier.weight(1f)) {
+            Text(exercise.name, style = MaterialTheme.typography.subtitle1)
+            Text(exercise.description, style = MaterialTheme.typography.body2)
+            Text(exercise.type, style = MaterialTheme.typography.caption)
+        }
+
+        // Action buttons
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onProgress) {
                 Text("Progress")
             }
-            Spacer(Modifier.width(4.dp))
             Button(onClick = onEdit) {
                 Text("Edit")
             }
-            Spacer(Modifier.width(4.dp))
-            Button(onClick = onDelete, colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error)) {
+            Button(
+                onClick = onDelete,
+                colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error)
+            ) {
                 Text("Delete")
             }
         }

@@ -40,7 +40,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
         var unsavedChanges by remember { mutableStateOf(false) }
         var showCancelConfirmation by remember { mutableStateOf(false) }
 
-        // If editing an existing workout, load data on first display
+        // If editing, load data
         if (workout != null && entries.isEmpty()) {
             entries.addAll(
                 workout.exercises.map { we ->
@@ -54,7 +54,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
 
         val exercises = ExerciseRepository.getAll()
 
-        // If creating a new workout, optionally load a template
+        // If adding a new workout, optionally load a template
         if (workout == null && entries.isEmpty()) {
             var showTemplateDialog by remember { mutableStateOf(true) }
             if (showTemplateDialog) {
@@ -66,7 +66,6 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                         Button(onClick = {
                             val templates = TemplateRepository.getAll()
                             if (templates.isNotEmpty()) {
-                                // For simplicity, we just pick the first template
                                 val template = templates.first()
                                 entries.addAll(
                                     template.exercises.map { te ->
@@ -79,10 +78,14 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                 unsavedChanges = true
                             }
                             showTemplateDialog = false
-                        }) { Text("Yes") }
+                        }) {
+                            Text("Yes")
+                        }
                     },
                     dismissButton = {
-                        Button(onClick = { showTemplateDialog = false }) { Text("No") }
+                        Button(onClick = { showTemplateDialog = false }) {
+                            Text("No")
+                        }
                     }
                 )
             }
@@ -147,7 +150,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                 Text("Exercises:", style = MaterialTheme.typography.subtitle1)
                 Spacer(Modifier.height(8.dp))
 
-                // Table-like headings for the workout exercises
+                // Table headings
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Exercise", modifier = Modifier.weight(0.4f))
                     Text("Sets (weight x reps)", modifier = Modifier.weight(0.5f))
@@ -180,7 +183,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                 }
                             }
 
-                            // Sets for weight and reps
+                            // Sets
                             Column(modifier = Modifier.weight(0.5f)) {
                                 entry.sets.forEachIndexed { setIndex, pair ->
                                     Row {
@@ -216,11 +219,14 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                 }
                             }
 
-                            // Delete exercise from workout
-                            IconButton(onClick = {
-                                entries.removeAt(index)
-                                unsavedChanges = true
-                            }, modifier = Modifier.weight(0.1f)) {
+                            // Delete the exercise from the workout
+                            IconButton(
+                                onClick = {
+                                    entries.removeAt(index)
+                                    unsavedChanges = true
+                                },
+                                modifier = Modifier.weight(0.1f)
+                            ) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Delete Exercise")
                             }
                         }
@@ -243,12 +249,12 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                             val start = LocalDateTime.parse(startText)
                             val end = LocalDateTime.parse(endText)
                             if (name.isNotBlank() && entries.isNotEmpty()) {
-                                val workoutExercises = entries.mapIndexed { index, entry ->
+                                val workoutExercises = entries.mapIndexed { idx, entry ->
                                     WorkoutExercise(
                                         id = 0,
                                         workoutId = 0,
                                         exercise = entry.exercise ?: error("No exercise selected"),
-                                        order = index,
+                                        order = idx,
                                         sets = entry.sets.mapIndexed { sIndex, pair ->
                                             WorkoutSet(
                                                 id = 0,
@@ -260,9 +266,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                         }
                                     )
                                 }
-
                                 if (workout != null) {
-                                    // Update existing workout
                                     WorkoutRepository.update(
                                         Workout(
                                             id = workout.id,
@@ -273,7 +277,6 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                         )
                                     )
                                 } else {
-                                    // Insert new workout
                                     WorkoutRepository.insert(
                                         Workout(
                                             id = 0,
@@ -288,7 +291,6 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                 navigator.pop()
                             }
                         } catch (e: Exception) {
-                            // You could show a Snackbar or alert for parse errors
                             println("Error: ${e.message}")
                         }
                     }) {

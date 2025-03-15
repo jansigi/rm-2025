@@ -46,13 +46,15 @@ class TemplatesScreen : Screen {
             }
         ) { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                // Table Headings
+                // Optional headings row
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Name", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.6f))
-                    Text("Actions", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.4f))
+                    Text("Name", style = MaterialTheme.typography.subtitle2)
+                    Text("Actions", style = MaterialTheme.typography.subtitle2)
                 }
                 Divider()
 
@@ -90,17 +92,24 @@ fun TemplateRow(
     onDelete: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(template.name, modifier = Modifier.weight(0.6f))
-        Row(modifier = Modifier.weight(0.4f), horizontalArrangement = Arrangement.End) {
+        Text(
+            template.name,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.subtitle1
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onEdit) {
                 Text("Edit")
             }
-            Spacer(Modifier.width(4.dp))
-            Button(onClick = onDelete, colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error)) {
+            Button(
+                onClick = onDelete,
+                colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error)
+            ) {
                 Text("Delete")
             }
         }

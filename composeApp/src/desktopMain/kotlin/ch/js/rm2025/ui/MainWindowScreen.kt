@@ -33,7 +33,6 @@ class MainWindowScreen : Screen {
                 TopAppBar(
                     title = { Text("AthliTrack - Workouts") },
                     actions = {
-                        // Navigation to Exercises and Templates
                         Button(onClick = { navigator.push(ExercisesScreen()) }) {
                             Text("Exercises")
                         }
@@ -51,22 +50,23 @@ class MainWindowScreen : Screen {
             }
         ) { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                // Table Headings
+                // Optional headings row
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Name", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.4f))
-                    Text("Start - End", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.4f))
-                    Text("Actions", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.2f))
+                    Text("Name", style = MaterialTheme.typography.subtitle2)
+                    Text("Start - End", style = MaterialTheme.typography.subtitle2)
+                    Text("Actions", style = MaterialTheme.typography.subtitle2)
                 }
                 Divider()
 
-                // Workouts List
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(workouts) { workout ->
                         WorkoutRow(
-                            workout = workout,
+                            workout,
                             onView = { navigator.push(ViewWorkoutScreen(workout)) },
                             onEdit = { navigator.push(AddEditWorkoutScreen(workout)) },
                             onDelete = { workoutToDelete = workout }
@@ -100,31 +100,32 @@ fun WorkoutRow(
 ) {
     val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
     val duration = Duration.between(workout.start, workout.end)
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        // Workout Name
-        Text(workout.name, modifier = Modifier.weight(0.4f))
 
-        // Start - End Info
-        Column(modifier = Modifier.weight(0.4f)) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Left column for name/time info
+        Column(modifier = Modifier.weight(1f)) {
+            Text(workout.name, style = MaterialTheme.typography.subtitle1)
             Text("${workout.start.format(formatter)} - ${workout.end.format(formatter)}")
             Text("Duration: ${duration.toHours()}h ${duration.toMinutes() % 60}m")
         }
 
-        // Actions
-        Row(modifier = Modifier.weight(0.2f), horizontalArrangement = Arrangement.End) {
+        // Action Buttons - no weight here, so they're not squashed
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onView) {
                 Text("View")
             }
-            Spacer(Modifier.width(4.dp))
             Button(onClick = onEdit) {
                 Text("Edit")
             }
-            Spacer(Modifier.width(4.dp))
-            Button(onClick = onDelete, colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error)) {
+            Button(
+                onClick = onDelete,
+                colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error)
+            ) {
                 Text("Delete")
             }
         }

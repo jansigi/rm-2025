@@ -36,7 +36,7 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
         var unsavedChanges by remember { mutableStateOf(false) }
         var showCancelConfirmation by remember { mutableStateOf(false) }
 
-        // If editing an existing template, load data on first display
+        // Load template data if editing
         if (template != null && entries.isEmpty()) {
             entries.addAll(
                 template.exercises.map { te ->
@@ -83,11 +83,11 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                 )
                 Spacer(Modifier.height(16.dp))
 
-                // Table headings for the exercise list
+                // Table headings
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Exercise", modifier = Modifier.weight(0.4f))
                     Text("Sets (reps)", modifier = Modifier.weight(0.5f))
-                    Spacer(Modifier.weight(0.1f)) // for delete icon
+                    Spacer(Modifier.weight(0.1f))
                 }
                 Divider()
 
@@ -139,7 +139,6 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                                 }
                             }
 
-                            // Delete exercise from template
                             IconButton(
                                 onClick = {
                                     entries.removeAt(index)
@@ -163,17 +162,17 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                         Text("Add Exercise")
                     }
                 }
-                Spacer(Modifier.height(16.dp))
 
+                Spacer(Modifier.height(16.dp))
                 Row {
                     Button(onClick = {
-                        if (name.isNotBlank() && entries.isNotEmpty() && entries.all { it.exercise != null && it.sets.all { reps -> reps > 0 } }) {
-                            val templateExercises = entries.mapIndexed { index, entry ->
+                        if (name.isNotBlank() && entries.isNotEmpty() && entries.all { it.exercise != null && it.sets.all { r -> r > 0 } }) {
+                            val templateExercises = entries.mapIndexed { idx, entry ->
                                 TemplateExercise(
                                     id = 0,
                                     templateId = 0,
                                     exercise = entry.exercise!!,
-                                    order = index,
+                                    order = idx,
                                     sets = entry.sets.mapIndexed { sIndex, reps ->
                                         TemplateSet(
                                             id = 0,
@@ -185,7 +184,6 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                                 )
                             }
                             if (template != null) {
-                                // Update existing template
                                 TemplateRepository.update(
                                     Template(
                                         id = template.id,
@@ -194,7 +192,6 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                                     )
                                 )
                             } else {
-                                // Insert new template
                                 TemplateRepository.insert(
                                     Template(
                                         id = 0,

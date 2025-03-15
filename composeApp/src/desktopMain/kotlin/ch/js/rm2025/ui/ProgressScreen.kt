@@ -65,8 +65,8 @@ class ProgressScreen(val exercise: Exercise) : Screen {
             Column(modifier = Modifier.fillMaxSize().padding(16.dp).padding(padding)) {
                 // Table-like listing of historical volumes
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Date", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.5f))
-                    Text("Total Volume", style = MaterialTheme.typography.subtitle2, modifier = Modifier.weight(0.5f))
+                    Text("Date", style = MaterialTheme.typography.subtitle2)
+                    Text("Total Volume", style = MaterialTheme.typography.subtitle2)
                 }
                 Divider()
 
@@ -77,8 +77,8 @@ class ProgressScreen(val exercise: Exercise) : Screen {
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(entry.date.format(formatter), modifier = Modifier.weight(0.5f))
-                            Text("${entry.totalVolume} kg", modifier = Modifier.weight(0.5f))
+                            Text(entry.date.format(formatter))
+                            Text("${entry.totalVolume} kg")
                         }
                         Divider()
                     }
