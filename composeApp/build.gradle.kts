@@ -48,7 +48,7 @@ kotlin {
 }
 
 group = "ch.js.rm2025"
-version = "6"
+version = "7"
 
 tasks.withType<Jar> {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
