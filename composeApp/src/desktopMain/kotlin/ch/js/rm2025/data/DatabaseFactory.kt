@@ -5,7 +5,6 @@ import ch.js.rm2025.repository.ExerciseRepository
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.io.File
 
 object DatabaseFactory {
     fun init() {
@@ -45,12 +44,9 @@ object DatabaseFactory {
                 )
             }
         }
-        val jsonFile = File("exercises.json")
-        if(jsonFile.exists()){
-            val jsonContent = jsonFile.readText()
-            ExerciseRepository.importExercisesFromJson(jsonContent)
-        } else {
-            println("exercises.json not found.")
+        // Insert default exercises directly.
+        transaction {
+            ExerciseRepository.insertDefaultExercises()
         }
     }
 }

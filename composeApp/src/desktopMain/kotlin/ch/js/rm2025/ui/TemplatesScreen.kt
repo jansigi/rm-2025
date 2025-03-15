@@ -12,19 +12,19 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import ch.js.rm2025.model.Template
 import ch.js.rm2025.repository.TemplateRepository
+import ch.js.rm2025.ui.component.ConfirmationDialog
 
 class TemplatesScreen : Screen {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         var templates by remember { mutableStateOf(listOf<Template>()) }
+        var templateToDelete by remember { mutableStateOf<Template?>(null) }
         LaunchedEffect(Unit) {
             templates = TemplateRepository.getAll()
         }
         Scaffold(
-            topBar = {
-                TopAppBar(title = { Text("AthliTrack - Templates") })
-            },
+            topBar = { TopAppBar(title = { Text("AthliTrack - Templates") }) },
             floatingActionButton = {
                 FloatingActionButton(onClick = { navigator.push(AddEditTemplateScreen(null)) }) {
                     Text("+")
@@ -33,21 +33,36 @@ class TemplatesScreen : Screen {
         ) { padding ->
             LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
                 items(templates) { template ->
-                    TemplateItem(template,
+                    TemplateItem(
+                        template,
                         onEdit = { navigator.push(AddEditTemplateScreen(template)) },
-                        onDelete = {
-                            TemplateRepository.delete(template.id)
-                            templates = TemplateRepository.getAll()
-                        }
+                        onDelete = { templateToDelete = template }
                     )
                 }
             }
+        }
+
+        if (templateToDelete != null) {
+            ConfirmationDialog(
+                title = "Delete Template",
+                message = "Are you sure you want to delete this template?",
+                onConfirm = {
+                    TemplateRepository.delete(templateToDelete!!.id)
+                    templates = TemplateRepository.getAll()
+                    templateToDelete = null
+                },
+                onDismiss = { templateToDelete = null }
+            )
         }
     }
 }
 
 @Composable
-fun TemplateItem(template: Template, onEdit: () -> Unit, onDelete: () -> Unit) {
+fun TemplateItem(
+    template: Template,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
         Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(template.name, style = MaterialTheme.typography.h6, modifier = Modifier.weight(1f))

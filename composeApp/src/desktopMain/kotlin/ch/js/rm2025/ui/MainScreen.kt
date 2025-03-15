@@ -12,6 +12,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import ch.js.rm2025.model.Workout
 import ch.js.rm2025.repository.WorkoutRepository
+import ch.js.rm2025.ui.component.ConfirmationDialog
 import java.time.Duration
 import java.time.format.DateTimeFormatter
 
@@ -20,6 +21,7 @@ class MainWindowScreen : Screen {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         var workouts by remember { mutableStateOf(listOf<Workout>()) }
+        var workoutToDelete by remember { mutableStateOf<Workout?>(null) }
         LaunchedEffect(Unit) {
             workouts = WorkoutRepository.getAll()
         }
@@ -47,22 +49,38 @@ class MainWindowScreen : Screen {
         ) { padding ->
             LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
                 items(workouts) { workout ->
-                    WorkoutItem(workout,
+                    WorkoutItem(
+                        workout,
                         onView = { navigator.push(ViewWorkoutScreen(workout)) },
                         onEdit = { navigator.push(AddEditWorkoutScreen(workout)) },
-                        onDelete = {
-                            // (Simplified confirmation)
-                            WorkoutRepository.delete(workout.id)
-                            workouts = WorkoutRepository.getAll()
-                        })
+                        onDelete = { workoutToDelete = workout }
+                    )
                 }
             }
+        }
+
+        if (workoutToDelete != null) {
+            ConfirmationDialog(
+                title = "Delete Workout",
+                message = "Are you sure you want to delete this workout?",
+                onConfirm = {
+                    WorkoutRepository.delete(workoutToDelete!!.id)
+                    workouts = WorkoutRepository.getAll()
+                    workoutToDelete = null
+                },
+                onDismiss = { workoutToDelete = null }
+            )
         }
     }
 }
 
 @Composable
-fun WorkoutItem(workout: Workout, onView: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+fun WorkoutItem(
+    workout: Workout,
+    onView: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
         Column(modifier = Modifier.padding(8.dp)) {
             Text("Name: ${workout.name}", style = MaterialTheme.typography.h6)
@@ -70,7 +88,7 @@ fun WorkoutItem(workout: Workout, onView: () -> Unit, onEdit: () -> Unit, onDele
             Text("Start: ${workout.start.format(formatter)}")
             Text("End: ${workout.end.format(formatter)}")
             val duration = Duration.between(workout.start, workout.end)
-            Text("Duration: ${duration.toHours()}h ${duration.toMinutes()%60}m")
+            Text("Duration: ${duration.toHours()}h ${duration.toMinutes() % 60}m")
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Button(onClick = onView) { Text("View Workout") }
                 Button(onClick = onEdit) { Text("Edit Workout") }
