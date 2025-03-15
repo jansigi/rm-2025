@@ -2,6 +2,8 @@ package ch.js.rm2025.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -10,6 +12,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import ch.js.rm2025.model.Exercise
 import ch.js.rm2025.repository.ExerciseRepository
+import ch.js.rm2025.ui.component.ConfirmationDialog
 
 class AddEditExerciseScreen(val exercise: Exercise?) : Screen {
     @Composable
@@ -26,7 +29,18 @@ class AddEditExerciseScreen(val exercise: Exercise?) : Screen {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(if (isEdit) "Edit Exercise" else "Add Exercise") }
+                    title = { Text(if (isEdit) "Edit Exercise" else "Add Exercise") },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            if (unsavedChanges) {
+                                showCancelConfirmation = true
+                            } else {
+                                navigator.pop()
+                            }
+                        }) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
                 )
             }
         ) { padding ->
@@ -92,20 +106,15 @@ class AddEditExerciseScreen(val exercise: Exercise?) : Screen {
             }
         }
         if (showCancelConfirmation) {
-            AlertDialog(
-                onDismissRequest = { showCancelConfirmation = false },
-                title = { Text("Discard Changes?") },
-                text = { Text("You have unsaved changes. Are you sure you want to cancel?") },
-                confirmButton = {
-                    Button(onClick = {
-                        showCancelConfirmation = false
-                        unsavedChanges = false
-                        navigator.pop()
-                    }) { Text("Yes") }
+            ConfirmationDialog(
+                title = "Discard Changes?",
+                message = "You have unsaved changes. Are you sure you want to cancel?",
+                onConfirm = {
+                    showCancelConfirmation = false
+                    unsavedChanges = false
+                    navigator.pop()
                 },
-                dismissButton = {
-                    Button(onClick = { showCancelConfirmation = false }) { Text("No") }
-                }
+                onDismiss = { showCancelConfirmation = false }
             )
         }
     }

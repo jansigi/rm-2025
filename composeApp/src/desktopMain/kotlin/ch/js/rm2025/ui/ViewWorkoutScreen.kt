@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
@@ -20,10 +22,17 @@ class ViewWorkoutScreen(val workout: Workout) : Screen {
         val navigator = LocalNavigator.currentOrThrow
         Scaffold(
             topBar = {
-                TopAppBar(title = { Text("Workout \"${workout.name}\"") })
+                TopAppBar(
+                    title = { Text("Workout \"${workout.name}\"") },
+                    navigationIcon = {
+                        IconButton(onClick = { navigator.pop() }) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                )
             }
         ) { padding ->
-            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp).padding(padding)) {
                 val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
                 Text("Start: ${workout.start.format(formatter)}")
                 Text("End: ${workout.end.format(formatter)}")

@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -19,6 +20,7 @@ import ch.js.rm2025.model.WorkoutSet
 import ch.js.rm2025.repository.ExerciseRepository
 import ch.js.rm2025.repository.TemplateRepository
 import ch.js.rm2025.repository.WorkoutRepository
+import ch.js.rm2025.ui.component.ConfirmationDialog
 import java.time.LocalDateTime
 
 data class WorkoutExerciseEntry(
@@ -34,7 +36,6 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
         var startText by remember { mutableStateOf(workout?.start?.toString() ?: LocalDateTime.now().toString()) }
         var endText by remember { mutableStateOf(workout?.end?.toString() ?: LocalDateTime.now().plusHours(1).toString()) }
         var entries by remember { mutableStateOf(mutableStateListOf<WorkoutExerciseEntry>()) }
-        // Track if any changes have been made.
         var unsavedChanges by remember { mutableStateOf(false) }
         var showCancelConfirmation by remember { mutableStateOf(false) }
 
@@ -79,9 +80,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                         }) { Text("Yes") }
                     },
                     dismissButton = {
-                        Button(onClick = {
-                            showTemplateDialog = false
-                        }) { Text("No") }
+                        Button(onClick = { showTemplateDialog = false }) { Text("No") }
                     }
                 )
             }
@@ -89,14 +88,27 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
 
         Scaffold(
             topBar = {
-                TopAppBar(title = {
-                    Text(
-                        if (workout != null)
-                            "Edit Workout \"${workout.name}\""
-                        else
-                            "Add Workout"
-                    )
-                })
+                TopAppBar(
+                    title = {
+                        Text(
+                            if (workout != null)
+                                "Edit Workout \"${workout.name}\""
+                            else
+                                "Add Workout"
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            if (unsavedChanges) {
+                                showCancelConfirmation = true
+                            } else {
+                                navigator.pop()
+                            }
+                        }) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                )
             }
         ) { padding ->
             Column(modifier = Modifier
@@ -192,7 +204,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                 entries.removeAt(index)
                                 unsavedChanges = true
                             }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete Exercise")
+                                Icon(Icons.Filled.Delete, contentDescription = "Delete Exercise")
                             }
                         }
                         Divider()
@@ -253,12 +265,11 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                 navigator.pop()
                             }
                         } catch (e: Exception) {
-                            // Here you can show an error message to the user regarding parsing errors.
+                            // Handle parse errors or show message
                         }
                     }) { Text("Save") }
                     Spacer(Modifier.width(8.dp))
                     Button(onClick = {
-                        // If there are unsaved changes, show a confirmation dialog.
                         if (unsavedChanges) {
                             showCancelConfirmation = true
                         } else {
@@ -270,20 +281,15 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
         }
 
         if (showCancelConfirmation) {
-            AlertDialog(
-                onDismissRequest = { showCancelConfirmation = false },
-                title = { Text("Cancel") },
-                text = { Text("Are you sure you want to cancel? Unsaved changes will be lost.") },
-                confirmButton = {
-                    Button(onClick = {
-                        showCancelConfirmation = false
-                        unsavedChanges = false
-                        navigator.pop()
-                    }) { Text("Yes") }
+            ConfirmationDialog(
+                title = "Discard Changes?",
+                message = "You have unsaved changes. Are you sure you want to cancel?",
+                onConfirm = {
+                    showCancelConfirmation = false
+                    unsavedChanges = false
+                    navigator.pop()
                 },
-                dismissButton = {
-                    Button(onClick = { showCancelConfirmation = false }) { Text("No") }
-                }
+                onDismiss = { showCancelConfirmation = false }
             )
         }
     }

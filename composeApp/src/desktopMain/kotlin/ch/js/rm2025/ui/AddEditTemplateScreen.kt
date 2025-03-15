@@ -5,17 +5,21 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
 import ch.js.rm2025.model.Exercise
 import ch.js.rm2025.model.Template
 import ch.js.rm2025.model.TemplateExercise
 import ch.js.rm2025.model.TemplateSet
 import ch.js.rm2025.repository.ExerciseRepository
 import ch.js.rm2025.repository.TemplateRepository
+import ch.js.rm2025.ui.component.ConfirmationDialog
 
 data class TemplateExerciseEntry(
     var exercise: Exercise? = null,
@@ -25,6 +29,7 @@ data class TemplateExerciseEntry(
 class AddEditTemplateScreen(val template: Template?) : Screen {
     @Composable
     override fun Content() {
+        val navigator = LocalNavigator.currentOrThrow
         var name by remember { mutableStateOf(template?.name ?: "") }
         var entries by remember { mutableStateOf(mutableStateListOf<TemplateExerciseEntry>()) }
         if (template != null && entries.isEmpty()) {
@@ -36,13 +41,37 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
             })
         }
         val exercises = ExerciseRepository.getAll()
+        var unsavedChanges by remember { mutableStateOf(false) }
+        var showCancelConfirmation by remember { mutableStateOf(false) }
+
         Scaffold(
             topBar = {
-                TopAppBar(title = { Text(if (template != null) "Edit Template \"${template.name}\"" else "Add Template") })
+                TopAppBar(
+                    title = { Text(if (template != null) "Edit Template \"${template.name}\"" else "Add Template") },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            if (unsavedChanges) {
+                                showCancelConfirmation = true
+                            } else {
+                                navigator.pop()
+                            }
+                        }) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                )
             }
         ) { padding ->
-            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Template Name") }, modifier = Modifier.fillMaxWidth())
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp).padding(padding)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = {
+                        name = it
+                        unsavedChanges = true
+                    },
+                    label = { Text("Template Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Spacer(Modifier.height(16.dp))
                 Text("Exercises:")
                 LazyColumn {
@@ -55,9 +84,10 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                                 }
                                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                                     exercises.forEach { ex ->
-                                        DropdownMenuItem(onClick = { 
+                                        DropdownMenuItem(onClick = {
                                             entry.exercise = ex
                                             expanded = false
+                                            unsavedChanges = true
                                         }) {
                                             Text(ex.name)
                                         }
@@ -71,29 +101,39 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                                         onValueChange = { newVal ->
                                             val intVal = newVal.toIntOrNull() ?: 0
                                             entry.sets[setIndex] = intVal
+                                            unsavedChanges = true
                                         },
                                         label = { Text("Set ${setIndex+1} reps") },
                                         modifier = Modifier.width(100.dp)
                                     )
                                 }
-                                Button(onClick = { entry.sets.add(0) }) {
+                                Button(onClick = {
+                                    entry.sets.add(0)
+                                    unsavedChanges = true
+                                }) {
                                     Text("Add Set")
                                 }
                             }
-                            IconButton(onClick = { entries.removeAt(index) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete Exercise")
+                            IconButton(onClick = {
+                                entries.removeAt(index)
+                                unsavedChanges = true
+                            }) {
+                                Icon(Icons.Filled.Delete, contentDescription = "Delete Exercise")
                             }
                         }
                         Divider()
                     }
                 }
-                Button(onClick = { entries.add(TemplateExerciseEntry()) }) {
+                Button(onClick = {
+                    entries.add(TemplateExerciseEntry())
+                    unsavedChanges = true
+                }) {
                     Text("Add Exercise")
                 }
                 Spacer(Modifier.height(16.dp))
                 Row {
                     Button(onClick = {
-                        if(name.isNotBlank() && entries.isNotEmpty() && entries.all { it.exercise != null && it.sets.all { reps -> reps > 0 } }){
+                        if (name.isNotBlank() && entries.isNotEmpty() && entries.all { it.exercise != null && it.sets.all { reps -> reps > 0 } }) {
                             val templateExercises = entries.mapIndexed { index, entry ->
                                 TemplateExercise(
                                     id = 0,
@@ -105,17 +145,37 @@ class AddEditTemplateScreen(val template: Template?) : Screen {
                                     }
                                 )
                             }
-                            if(template != null){
+                            if (template != null) {
                                 TemplateRepository.update(Template(id = template.id, name = name, exercises = templateExercises))
                             } else {
                                 TemplateRepository.insert(Template(id = 0, name = name, exercises = templateExercises))
                             }
+                            unsavedChanges = false
+                            navigator.pop()
                         }
                     }) { Text("Save") }
                     Spacer(Modifier.width(8.dp))
-                    Button(onClick = { /* Cancel action */ }) { Text("Cancel") }
+                    Button(onClick = {
+                        if (unsavedChanges) {
+                            showCancelConfirmation = true
+                        } else {
+                            navigator.pop()
+                        }
+                    }) { Text("Cancel") }
                 }
             }
+        }
+        if (showCancelConfirmation) {
+            ConfirmationDialog(
+                title = "Discard Changes?",
+                message = "You have unsaved changes. Are you sure you want to cancel?",
+                onConfirm = {
+                    showCancelConfirmation = false
+                    unsavedChanges = false
+                    navigator.pop()
+                },
+                onDismiss = { showCancelConfirmation = false }
+            )
         }
     }
 }

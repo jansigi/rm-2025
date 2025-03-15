@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -24,7 +26,16 @@ class TemplatesScreen : Screen {
             templates = TemplateRepository.getAll()
         }
         Scaffold(
-            topBar = { TopAppBar(title = { Text("AthliTrack - Templates") }) },
+            topBar = {
+                TopAppBar(
+                    title = { Text("AthliTrack - Templates") },
+                    navigationIcon = {
+                        IconButton(onClick = { navigator.pop() }) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                )
+            },
             floatingActionButton = {
                 FloatingActionButton(onClick = { navigator.push(AddEditTemplateScreen(null)) }) {
                     Text("+")
