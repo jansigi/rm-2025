@@ -27,6 +27,9 @@ class AddEditExerciseScreen(val exercise: Exercise?) : Screen {
         var unsavedChanges by remember { mutableStateOf(false) }
         var showCancelConfirmation by remember { mutableStateOf(false) }
 
+        // New state to show duplicate-name errors
+        var duplicateNameError by remember { mutableStateOf<String?>(null) }
+
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -54,11 +57,18 @@ class AddEditExerciseScreen(val exercise: Exercise?) : Screen {
                 Text(if (isEdit) "Edit this exercise" else "Create a new exercise", style = MaterialTheme.typography.h6)
                 Spacer(Modifier.height(8.dp))
 
+                // Show duplicate name error if any
+                if (duplicateNameError != null) {
+                    Text(duplicateNameError!!, color = MaterialTheme.colors.error)
+                    Spacer(Modifier.height(8.dp))
+                }
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = {
                         name = it
                         unsavedChanges = true
+                        duplicateNameError = null // clear error as user types
                     },
                     label = { Text("Exercise Name") },
                     modifier = Modifier.fillMaxWidth()
@@ -86,17 +96,21 @@ class AddEditExerciseScreen(val exercise: Exercise?) : Screen {
                 Row {
                     Button(onClick = {
                         if (name.isNotBlank() && description.isNotBlank() && type.isNotBlank()) {
-                            if (isEdit) {
-                                ExerciseRepository.update(
-                                    Exercise(exercise!!.id, name, description, type)
-                                )
+                            // Check for duplicates
+                            val existing = ExerciseRepository.getAll().find { it.name == name }
+                            // If existing != null, check if it's not the same item in edit
+                            if (existing != null && existing.id != exercise?.id) {
+                                duplicateNameError = "An exercise with this name already exists!"
                             } else {
-                                ExerciseRepository.insert(
-                                    Exercise(0, name, description, type)
-                                )
+                                // No duplicates => proceed
+                                if (isEdit) {
+                                    ExerciseRepository.update(Exercise(exercise!!.id, name, description, type))
+                                } else {
+                                    ExerciseRepository.insert(Exercise(0, name, description, type))
+                                }
+                                unsavedChanges = false
+                                navigator.pop()
                             }
-                            unsavedChanges = false
-                            navigator.pop()
                         }
                     }) {
                         Text("Save")
