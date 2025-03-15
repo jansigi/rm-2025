@@ -14,7 +14,6 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import ch.js.rm2025.model.Exercise
-import ch.js.rm2025.model.Template
 import ch.js.rm2025.model.Workout
 import ch.js.rm2025.model.WorkoutExercise
 import ch.js.rm2025.model.WorkoutSet
@@ -28,16 +27,10 @@ import java.time.format.DateTimeParseException
 
 data class WorkoutExerciseEntry(
     var exercise: Exercise? = null,
+    // Each pair represents (weight, reps) for a set.
     var sets: MutableList<Pair<Double, Int>> = mutableStateListOf()
 )
 
-/**
- * Allows creating or editing a Workout, with:
- * - Template selection dialog that lets you pick any existing template or "No Template."
- * - Date/time fields in the format "yyyy-MM-dd HH:mm."
- * - Duplicate name checks (no two workouts can share the same name).
- * - Scrollable list of exercises, pinned bottom bar with "Add Exercise," "Save," and "Cancel."
- */
 class AddEditWorkoutScreen(val workout: Workout?) : Screen {
     private val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
@@ -60,16 +53,18 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
             )
         }
 
-        // The list of exercises (scrollable)
+        // Error messages for name, parsing, duplicate names, and date order.
+        var nameError by remember { mutableStateOf<String?>(null) }
+        var parseErrorMessage by remember { mutableStateOf<String?>(null) }
+        var duplicateNameError by remember { mutableStateOf<String?>(null) }
+        var exerciseListError by remember { mutableStateOf<String?>(null) }
+
+        // The list of exercise entries.
         var entries by remember { mutableStateOf(mutableStateListOf<WorkoutExerciseEntry>()) }
         var unsavedChanges by remember { mutableStateOf(false) }
         var showCancelConfirmation by remember { mutableStateOf(false) }
 
-        // Error messages
-        var parseErrorMessage by remember { mutableStateOf<String?>(null) }
-        var duplicateNameError by remember { mutableStateOf<String?>(null) }
-
-        // If editing, load data once
+        // Load existing workout data if editing.
         if (workout != null && entries.isEmpty()) {
             entries.addAll(
                 workout.exercises.map { we ->
@@ -83,16 +78,12 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
 
         val exercises = ExerciseRepository.getAll()
 
-        // If this is a new workout (workout == null) and no exercises exist yet,
-        // we show a template selection dialog with all available templates or "No Template."
+        // Show template selection dialog if new workout and no exercises have been added.
         var showTemplateDialog by remember { mutableStateOf(workout == null && entries.isEmpty()) }
         if (showTemplateDialog) {
-            // Grab all templates
             val templates = TemplateRepository.getAll()
-
-            // For picking a template from the list or "No Template"
             var expanded by remember { mutableStateOf(false) }
-            var selectedTemplate by remember { mutableStateOf<Template?>(null) }
+            var selectedTemplate by remember { mutableStateOf<ch.js.rm2025.model.Template?>(null) }
 
             AlertDialog(
                 onDismissRequest = { showTemplateDialog = false },
@@ -106,14 +97,12 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                 Text(selectedTemplate?.name ?: "No Template")
                             }
                             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                // "No Template" option
                                 DropdownMenuItem(onClick = {
                                     selectedTemplate = null
                                     expanded = false
                                 }) {
                                     Text("No Template")
                                 }
-                                // All existing templates
                                 templates.forEach { t ->
                                     DropdownMenuItem(onClick = {
                                         selectedTemplate = t
@@ -128,7 +117,6 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                 },
                 confirmButton = {
                     Button(onClick = {
-                        // If user picked a template, load it
                         if (selectedTemplate != null) {
                             entries.clear()
                             selectedTemplate!!.exercises.forEach { te ->
@@ -157,9 +145,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = {
-                        Text(if (workout != null) "Edit Workout \"${workout.name}\"" else "Add Workout")
-                    },
+                    title = { Text(if (workout != null) "Edit Workout \"${workout.name}\"" else "Add Workout") },
                     navigationIcon = {
                         IconButton(onClick = {
                             if (unsavedChanges) {
@@ -173,10 +159,8 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                     }
                 )
             },
-            // The bottomBar holds Add Exercise, Save, and Cancel
             bottomBar = {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    // Add Exercise
                     Button(
                         onClick = {
                             entries.add(WorkoutExerciseEntry())
@@ -187,67 +171,78 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                         Text("Add Exercise")
                     }
                     Spacer(Modifier.height(8.dp))
-                    // Save / Cancel
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = {
-                            // Clear old errors
+                            // Clear previous errors
+                            nameError = null
                             parseErrorMessage = null
                             duplicateNameError = null
+                            exerciseListError = null
+
+                            // Validate name field.
+                            if (name.isBlank()) {
+                                nameError = "Workout name is required!"
+                                return@Button
+                            }
+                            // Check for duplicate workout names.
+                            val existing = WorkoutRepository.getAll().find { it.name == name }
+                            if (existing != null && existing.id != workout?.id) {
+                                duplicateNameError = "A workout with this name already exists!"
+                                return@Button
+                            }
+                            // Validate that at least one exercise is present.
+                            if (entries.isEmpty()) {
+                                exerciseListError = "At least one exercise is required!"
+                                return@Button
+                            }
                             try {
                                 val start = LocalDateTime.parse(startText, dateTimeFormatter)
                                 val end = LocalDateTime.parse(endText, dateTimeFormatter)
-
-                                if (name.isNotBlank() && entries.isNotEmpty()) {
-                                    // Check for duplicates
-                                    val existing = WorkoutRepository.getAll().find { it.name == name }
-                                    if (existing != null && existing.id != workout?.id) {
-                                        duplicateNameError = "A workout with this name already exists!"
-                                    } else {
-                                        // No duplicates => proceed
-                                        val workoutExercises = entries.mapIndexed { idx, entry ->
-                                            WorkoutExercise(
-                                                id = 0,
-                                                workoutId = 0,
-                                                exercise = entry.exercise ?: error("No exercise selected"),
-                                                order = idx,
-                                                sets = entry.sets.mapIndexed { sIndex, pair ->
-                                                    WorkoutSet(
-                                                        id = 0,
-                                                        workoutExerciseId = 0,
-                                                        setNumber = sIndex + 1,
-                                                        weight = pair.first,
-                                                        reps = pair.second
-                                                    )
-                                                }
-                                            )
-                                        }
-                                        if (workout != null) {
-                                            // Update existing
-                                            WorkoutRepository.update(
-                                                Workout(
-                                                    id = workout.id,
-                                                    name = name,
-                                                    start = start,
-                                                    end = end,
-                                                    exercises = workoutExercises
-                                                )
-                                            )
-                                        } else {
-                                            // Insert new
-                                            WorkoutRepository.insert(
-                                                Workout(
-                                                    id = 0,
-                                                    name = name,
-                                                    start = start,
-                                                    end = end,
-                                                    exercises = workoutExercises
-                                                )
-                                            )
-                                        }
-                                        unsavedChanges = false
-                                        navigator.pop()
-                                    }
+                                // Check that start is before end.
+                                if (!start.isBefore(end)) {
+                                    parseErrorMessage = "Start date must be before end date!"
+                                    return@Button
                                 }
+                                val workoutExercises = entries.mapIndexed { idx, entry ->
+                                    WorkoutExercise(
+                                        id = 0,
+                                        workoutId = 0,
+                                        exercise = entry.exercise ?: error("No exercise selected"),
+                                        order = idx,
+                                        sets = entry.sets.mapIndexed { sIndex, pair ->
+                                            WorkoutSet(
+                                                id = 0,
+                                                workoutExerciseId = 0,
+                                                setNumber = sIndex + 1,
+                                                weight = pair.first,
+                                                reps = pair.second
+                                            )
+                                        }
+                                    )
+                                }
+                                if (workout != null) {
+                                    WorkoutRepository.update(
+                                        Workout(
+                                            id = workout.id,
+                                            name = name,
+                                            start = start,
+                                            end = end,
+                                            exercises = workoutExercises
+                                        )
+                                    )
+                                } else {
+                                    WorkoutRepository.insert(
+                                        Workout(
+                                            id = 0,
+                                            name = name,
+                                            start = start,
+                                            end = end,
+                                            exercises = workoutExercises
+                                        )
+                                    )
+                                }
+                                unsavedChanges = false
+                                navigator.pop()
                             } catch (e: DateTimeParseException) {
                                 parseErrorMessage = "Invalid date/time format. Use yyyy-MM-dd HH:mm"
                             } catch (e: Exception) {
@@ -272,17 +267,15 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
                     .padding(padding)
+                    .padding(16.dp)
             ) {
-                Text(
-                    if (workout != null) "Edit this workout"
-                    else "Create a new workout",
-                    style = MaterialTheme.typography.h6
-                )
+                Text(if (workout != null) "Edit this workout" else "Create a new workout", style = MaterialTheme.typography.h6)
                 Spacer(Modifier.height(8.dp))
-
-                // Show any error messages
+                if (nameError != null) {
+                    Text(nameError!!, color = MaterialTheme.colors.error)
+                    Spacer(Modifier.height(8.dp))
+                }
                 if (parseErrorMessage != null) {
                     Text(parseErrorMessage!!, color = MaterialTheme.colors.error)
                     Spacer(Modifier.height(8.dp))
@@ -291,13 +284,18 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                     Text(duplicateNameError!!, color = MaterialTheme.colors.error)
                     Spacer(Modifier.height(8.dp))
                 }
-
+                if (exerciseListError != null) {
+                    Text(exerciseListError!!, color = MaterialTheme.colors.error)
+                    Spacer(Modifier.height(8.dp))
+                }
                 OutlinedTextField(
                     value = name,
                     onValueChange = {
                         name = it
                         unsavedChanges = true
+                        nameError = null
                         duplicateNameError = null
+                        exerciseListError = null
                     },
                     label = { Text("Workout Name") },
                     modifier = Modifier.fillMaxWidth()
@@ -309,7 +307,7 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                         unsavedChanges = true
                         parseErrorMessage = null
                     },
-                    label = { Text("Start (yyyy-MM-dd HH:mm)") },
+                    label = { Text("Start Datetime (yyyy-MM-dd HH:mm)") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -319,30 +317,24 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                         unsavedChanges = true
                         parseErrorMessage = null
                     },
-                    label = { Text("End (yyyy-MM-dd HH:mm)") },
+                    label = { Text("End Datetime (yyyy-MM-dd HH:mm)") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(16.dp))
-
                 Text("Exercises:", style = MaterialTheme.typography.subtitle1)
                 Spacer(Modifier.height(8.dp))
-
-                // Table headings
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Exercise", modifier = Modifier.weight(0.4f))
                     Text("Sets (weight x reps)", modifier = Modifier.weight(0.5f))
                     Spacer(Modifier.weight(0.1f))
                 }
                 Divider()
-
-                // Scrollable list of exercises
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     itemsIndexed(entries) { index, entry ->
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Exercise dropdown
                             var expanded by remember { mutableStateOf(false) }
                             Box(modifier = Modifier.weight(0.4f)) {
                                 OutlinedButton(onClick = { expanded = true }) {
@@ -360,8 +352,6 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                     }
                                 }
                             }
-
-                            // Sets
                             Column(modifier = Modifier.weight(0.5f)) {
                                 entry.sets.forEachIndexed { setIndex, pair ->
                                     Row {
@@ -396,8 +386,6 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
                                     Text("Add Set")
                                 }
                             }
-
-                            // Delete exercise
                             IconButton(
                                 onClick = {
                                     entries.removeAt(index)
@@ -414,7 +402,6 @@ class AddEditWorkoutScreen(val workout: Workout?) : Screen {
             }
         }
 
-        // Confirmation dialog for discarding unsaved changes
         if (showCancelConfirmation) {
             ConfirmationDialog(
                 title = "Discard Changes?",
